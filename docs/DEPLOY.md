@@ -138,8 +138,8 @@ Neon e Supabase fazem backup automático (verifique o período de retenção do 
 
 | Sintoma | Causa provável |
 |---|---|
-| Build para em "✖ Variáveis de ambiente faltando" ou `datasource.url é obrigatória` | Banco ou `AUTH_SECRET` não cadastrados **para o ambiente do build** (Production/Preview). Cadastre e faça Redeploy |
-| Build falha em `prisma migrate deploy` com erro de conexão | URL errada ou banco inacessível |
+| Build para em "✖ Configuração de ambiente inválida" ou `datasource.url é obrigatória` | Banco ou `AUTH_SECRET` não cadastrados **para o ambiente do build** (Production/Preview). Cadastre e faça Redeploy |
+| `P1001: Can't reach database server` no build | URL errada, banco pausado ou `localhost` (valor do .env local copiado para a Vercel) |
 | `/api/health` → `unreachable` | URL errada, IP bloqueado ou banco pausado (planos gratuitos hibernam) |
 | Login volta sempre para a tela de login | `AUTH_SECRET` ausente ou diferente entre deploys; `AUTH_URL` errado em domínio próprio |
 | E-mail de senha não chega | `RESEND_API_KEY` ausente, domínio não verificado ou e-mail no spam |

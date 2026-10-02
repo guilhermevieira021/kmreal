@@ -17,16 +17,38 @@ if (!pooled) {
       `   ou Storage → conecte o banco ao projeto. Veja docs/DEPLOY.md, passo 3.`,
   );
 }
+
+/** Na Vercel, banco em localhost nunca é alcançável: é o valor do .env de desenvolvimento. */
+const isLocalHost = (url: string) => {
+  try {
+    return ["localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"].includes(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+};
+
+if (process.env.VERCEL) {
+  const localVars = [pooled, direct]
+    .filter((found) => found && isLocalHost(found.value))
+    .map((found) => found!.name);
+  const names = [...new Set(localVars)];
+  if (names.length) {
+    problems.push(
+      `${names.join(" e ")} ${names.length > 1 ? "apontam" : "aponta"} para localhost (banco de desenvolvimento), inacessível na Vercel.\n` +
+        `   Apague em Settings → Environment Variables e conecte um banco na nuvem:\n` +
+        `   Storage → Create Database → Neon. Veja docs/DEPLOY.md, passo 3.`,
+    );
+  }
+}
+
 if (!process.env.AUTH_SECRET?.trim()) {
-  problems.push(
-    `AUTH_SECRET ausente: gere com \`npx auth secret\` e cadastre na Vercel (ambiente "${target}").`,
-  );
+  problems.push(`AUTH_SECRET ausente: gere com \`npx auth secret\` e cadastre na Vercel (ambiente "${target}").`);
 }
 
 if (problems.length) {
-  console.error(`\n✖ Variáveis de ambiente faltando para o build (${target}):\n`);
+  console.error(`\n✖ Configuração de ambiente inválida para o build (${target}):\n`);
   for (const p of problems) console.error(` - ${p}\n`);
-  console.error("Depois de cadastrar, faça Redeploy (Deployments → ⋯ → Redeploy).\n");
+  console.error("Depois de corrigir, publique de novo o commit mais recente (Deployments → Create Deployment → main).\n");
   process.exit(1);
 }
 
