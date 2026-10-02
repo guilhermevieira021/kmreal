@@ -1,4 +1,5 @@
 import { LocalImportSheet } from "@/features/migration/local-import-sheet";
+import { UpgradeProvider } from "@/features/subscription/upgrade-provider";
 import { DataProvider } from "@/providers/data-provider";
 
 /**
@@ -8,8 +9,10 @@ import { DataProvider } from "@/providers/data-provider";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <DataProvider>
-      {children}
-      <LocalImportSheet />
+      <UpgradeProvider>
+        {children}
+        <LocalImportSheet />
+      </UpgradeProvider>
     </DataProvider>
   );
 }

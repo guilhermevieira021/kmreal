@@ -4,9 +4,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { toast } from "sonner";
 import { buildCostRates, type CostRates } from "@/lib/calculations/real-cost";
 import { sortTripsByDateDesc } from "@/lib/calculations/trip";
+import { PRO_REQUIRED_EVENT } from "@/lib/subscription";
 import {
   ApiError,
+  fetchMe,
   maintenanceRepository,
+  type MeResponse,
   settingsRepository,
   tripRepository,
   vehicleRepository,
@@ -30,7 +33,16 @@ interface DataContextValue {
   trips: Trip[];
   maintenances: Maintenance[];
   settings: UserSettings | null;
-  /** Taxas R$/km de custos fixos, desgaste e manutenção por veículo (base do custo real) */
+  /** Conta e plano (null até carregar) */
+  account: MeResponse | null;
+  /** Acesso PRO vigente (hasProAccess calculado pelo servidor) */
+  isPro: boolean;
+  /** Rebusca o plano (ex.: ao voltar do checkout). Devolve a resposta nova (null sem rede). */
+  refreshAccount(): Promise<MeResponse | null>;
+  /**
+   * Taxas R$/km de custos fixos, desgaste e manutenção por veículo (base do custo real).
+   * No FREE fica vazio: todos os cálculos "reais" viram custo operacional.
+   */
   costRates: CostRates;
   createVehicle(input: VehicleInput): Promise<Vehicle>;
   updateVehicle(id: string, changes: Partial<VehicleInput>): Promise<Vehicle>;
@@ -53,12 +65,19 @@ const byDateDesc = (items: Maintenance[]) => [...items].sort((a, b) => b.date.lo
 const errorMessage = (error: unknown) =>
   error instanceof ApiError ? error.message : "Algo deu errado. Tente de novo.";
 
-/** Mostra o erro ao motorista e repassa para quem chamou (o formulário não fecha nem navega). */
+/**
+ * Mostra o erro ao motorista e repassa para quem chamou (o formulário não fecha nem navega).
+ * Recurso PRO negado pelo servidor (ex.: assinatura venceu com o app aberto) abre a oferta.
+ */
 async function notify<R>(action: () => Promise<R>): Promise<R> {
   try {
     return await action();
   } catch (error) {
-    toast.error(errorMessage(error));
+    if (error instanceof ApiError && error.code === "PRO_REQUIRED") {
+      window.dispatchEvent(new Event(PRO_REQUIRED_EVENT));
+    } else {
+      toast.error(errorMessage(error));
+    }
     throw error;
   }
 }
@@ -70,15 +89,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [maintenances, setMaintenances] = useState<Maintenance[]>([]);
   const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [account, setAccount] = useState<MeResponse | null>(null);
 
   const reload = useCallback(async () => {
     try {
-      const [v, t, m, s] = await Promise.all([
+      const [me, v, t, m, s] = await Promise.all([
+        fetchMe(),
         vehicleRepository.list(),
         tripRepository.list(),
         maintenanceRepository.list(),
         settingsRepository.get(),
       ]);
+      setAccount(me);
       setVehicles(v);
       setTrips(sortTripsByDateDesc(t));
       setMaintenances(byDateDesc(m));
@@ -97,7 +119,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
     reload();
   }, [reload]);
 
-  const costRates = useMemo(() => buildCostRates(vehicles, trips, maintenances), [vehicles, trips, maintenances]);
+  const refreshAccount = useCallback(async () => {
+    try {
+      const me = await fetchMe();
+      setAccount(me);
+      return me;
+    } catch {
+      // Sem rede: mantém o plano conhecido; o servidor continua barrando o que for PRO.
+      return null;
+    }
+  }, []);
+
+  // Voltou ao app (ex.: depois de pagar na Cakto): confere o plano de novo. Também expira na hora.
+  useEffect(() => {
+    const onVisible = () => document.visibilityState === "visible" && void refreshAccount();
+    const onProRequired = () => void refreshAccount();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener(PRO_REQUIRED_EVENT, onProRequired);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener(PRO_REQUIRED_EVENT, onProRequired);
+    };
+  }, [refreshAccount]);
+
+  const isPro = account?.subscription.isPro ?? false;
+  const costRates = useMemo(
+    () => (isPro ? buildCostRates(vehicles, trips, maintenances) : new Map()),
+    [isPro, vehicles, trips, maintenances],
+  );
 
   const createVehicle = useCallback(
     (input: VehicleInput) =>
@@ -204,6 +253,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       trips,
       maintenances,
       settings,
+      account,
+      isPro,
+      refreshAccount,
       costRates,
       createVehicle,
       updateVehicle,
@@ -224,6 +276,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       trips,
       maintenances,
       settings,
+      account,
+      isPro,
+      refreshAccount,
       costRates,
       createVehicle,
       updateVehicle,

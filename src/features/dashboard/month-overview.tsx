@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { ArrowDownRight, ArrowUpRight, Route, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BellRing, Gauge, Route, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Money } from "@/components/shared/money";
@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertList } from "@/features/alerts/alert-list";
 import { useAlerts } from "@/features/alerts/use-alerts";
 import { GoalCard } from "@/features/goal/goal-card";
+import { ProLockedCard } from "@/features/subscription/pro-lock";
 import { bestTripOfMonth, buildInsights, comparisonWindow } from "@/lib/calculations/insights";
 import { percentChange, statsForRange } from "@/lib/calculations/metrics";
 import { summarizeReal } from "@/lib/calculations/real-cost";
@@ -45,7 +46,7 @@ function DashboardSkeleton() {
 }
 
 export function MonthOverview() {
-  const { trips, costRates, settings, isLoading } = useData();
+  const { trips, costRates, settings, isLoading, isPro } = useData();
   const alerts = useAlerts();
   const vehicleNames = useVehicleNames();
 
@@ -101,17 +102,32 @@ export function MonthOverview() {
         <div className="grid gap-6">
           {/* Ordem de prioridade: 1) quanto estou ganhando 2) quanto o veículo custa 3) a meta */}
           <div className="grid gap-3">
-            <ProfitHeroCard month={data.month} previous={data.previous} previousMonthName={data.previousMonthName} />
-            <RealCostCard summary={data.cost} change={data.costChange} changeLabel={data.costChangeLabel} />
+            <ProfitHeroCard
+              month={data.month}
+              previous={data.previous}
+              previousMonthName={data.previousMonthName}
+              pro={isPro}
+            />
+            {isPro ? (
+              <RealCostCard summary={data.cost} change={data.costChange} changeLabel={data.costChangeLabel} />
+            ) : (
+              <ProLockedCard
+                feature="Custo real por KM"
+                icon={Gauge}
+                title="Seu veículo custa"
+                teaser="R$ 1,69/km"
+                description="Descubra o custo real por KM, com custos fixos, desgaste e manutenção."
+              />
+            )}
             <GoalCard goal={settings?.monthlyProfitGoal ?? null} monthProfit={data.month.realProfit} />
           </div>
 
           <Section title="Detalhes do mês">
             <div className="grid grid-cols-2 gap-3">
               <StatCard label="Receita" icon={ArrowUpRight} value={<Money value={data.month.revenue} />} />
-              <StatCard label="Custo real" icon={ArrowDownRight} value={<Money value={data.month.realCosts} />} />
+              <StatCard label={isPro ? "Custo real" : "Custos"} icon={ArrowDownRight} value={<Money value={data.month.realCosts} />} />
               <StatCard
-                label="Lucro real"
+                label={isPro ? "Lucro real" : "Lucro"}
                 icon={Wallet}
                 tone={profitTone(data.month.realProfit)}
                 value={<Money value={data.month.realProfit} />}
@@ -120,7 +136,16 @@ export function MonthOverview() {
             </div>
           </Section>
 
-          {alerts.length > 0 && (
+          {!isPro && (
+            <ProLockedCard
+              feature="Alertas inteligentes e insights"
+              icon={BellRing}
+              title="Alertas e insights"
+              description="Aviso de troca de óleo, pneus, seguro e quando o lucro por KM cair."
+            />
+          )}
+
+          {isPro && alerts.length > 0 && (
             <Section
               title="Alertas"
               action={alerts.length > DASHBOARD_ALERTS ? { href: "/saude#alertas", label: `Ver ${alerts.length}` } : undefined}
@@ -129,7 +154,7 @@ export function MonthOverview() {
             </Section>
           )}
 
-          {data.insights.length > 0 && (
+          {isPro && data.insights.length > 0 && (
             <Section title="Resumo rápido">
               <InsightsCard insights={data.insights} />
             </Section>

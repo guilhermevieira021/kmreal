@@ -6,6 +6,7 @@ Lucro real por KM para motoristas agregados e pequenos transportadores. Mobile f
 
 - [Deploy na Vercel e conexão com PostgreSQL](docs/DEPLOY.md)
 - [Análise do protótipo e plano de migração](docs/MIGRACAO.md)
+- [Assinaturas FREE/PRO e webhook da Cakto](docs/ASSINATURAS.md)
 
 ---
 
@@ -49,6 +50,7 @@ Gere o `AUTH_SECRET` com `npx auth secret` (ou `openssl rand -base64 32`).
 | `db:deploy` | Aplica migrações pendentes em produção (`prisma migrate deploy`) |
 | `db:seed` | (Re)cria a conta demo — só mexe nela |
 | `db:studio` | Interface para ver os dados |
+| `pro:grant` | Ativa o PRO manualmente para um e-mail (suporte) |
 | `vercel-build` | Usado automaticamente pela Vercel: generate → migrate deploy → build |
 
 ## Variáveis de ambiente
@@ -60,6 +62,8 @@ Todas documentadas em [`.env.example`](.env.example).
 | `DATABASE_URL` | Sim | PostgreSQL do app (em produção, URL **com pooler**) |
 | `DIRECT_URL` | Recomendada c/ pooler | Conexão direta para migrações e seed |
 | `AUTH_SECRET` | Sim | Assina as sessões (JWT) |
+| `CAKTO_WEBHOOK_SECRET` | Sim (para vender) | Valida o webhook de pagamento da Cakto |
+| `NEXT_PUBLIC_CAKTO_CHECKOUT_URL` | Não | Link do checkout do PRO (padrão já configurado) |
 | `AUTH_URL` / `NEXTAUTH_URL` | Fora da Vercel / domínio próprio | URL pública; base do link de recuperação de senha |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Recomendadas | Envio do e-mail de recuperação de senha |
 | `DATABASE_POOL_MAX` | Não | Conexões por instância (padrão 5) |
@@ -104,6 +108,10 @@ src/
 - Cadastro (`/cadastro`), login (`/login`), logout (Perfil), recuperação (`/recuperar-senha` → e-mail → `/redefinir-senha`).
 - Senhas com bcrypt; tokens de redefinição guardados só como hash SHA-256, uso único, válidos por 1 hora.
 - Sessão JWT persistente por 30 dias. O middleware protege `/dashboard`, `/historico`, `/viagens`, `/veiculos`, `/perfil`, `/saude`, `/simulador`; a API responde 401 sem sessão.
+
+## Planos FREE e PRO
+
+Todo usuário novo entra no FREE. O PRO (R$ 19,90/mês) é ativado pelo webhook da Cakto e vale 30 dias; vencido, volta ao FREE automaticamente sem perder dados. Regra única: `hasProAccess()` em `src/lib/subscription.ts`. Detalhes, fluxos e operação em [docs/ASSINATURAS.md](docs/ASSINATURAS.md).
 
 ## Migração dos dados do protótipo
 

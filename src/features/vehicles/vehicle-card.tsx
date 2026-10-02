@@ -5,6 +5,7 @@ import type { HealthStatus } from "@/lib/calculations/vehicle-health";
 import { FUEL_TYPE_LABELS } from "@/lib/constants";
 import { formatCurrencyPerKm, formatNumber } from "@/lib/format";
 import type { Vehicle } from "@/types";
+import { ProBadge } from "@/features/subscription/pro-lock";
 import { HealthBadge } from "./health-badge";
 
 interface VehicleCardProps {
@@ -13,9 +14,11 @@ interface VehicleCardProps {
   /** Custo real/km (null = sem viagens) */
   realCostPerKm: number | null;
   health: HealthStatus;
+  /** FREE: custo real fica bloqueado */
+  pro: boolean;
 }
 
-export function VehicleCard({ vehicle, tripCount, realCostPerKm, health }: VehicleCardProps) {
+export function VehicleCard({ vehicle, tripCount, realCostPerKm, health, pro }: VehicleCardProps) {
   return (
     <li>
       <Link
@@ -44,9 +47,15 @@ export function VehicleCard({ vehicle, tripCount, realCostPerKm, health }: Vehic
           </div>
           <div className="px-4 py-3">
             <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">Custo real</p>
-            <p className="text-xl font-bold tabular-nums">
-              {realCostPerKm !== null ? formatCurrencyPerKm(realCostPerKm) : "—"}
-            </p>
+            {pro ? (
+              <p className="text-xl font-bold tabular-nums">
+                {realCostPerKm !== null ? formatCurrencyPerKm(realCostPerKm) : "—"}
+              </p>
+            ) : (
+              <p className="mt-1">
+                <ProBadge />
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 border-t px-4 py-2">

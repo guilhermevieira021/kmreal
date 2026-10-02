@@ -19,7 +19,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/historico", label: "Histórico", icon: History, match: ["/historico", "/viagens/"] },
   { href: "/viagens/nova", label: "Nova viagem", icon: Plus, match: ["/viagens/nova"], primary: true },
   { href: "/veiculos", label: "Veículos", icon: CarFront, match: ["/veiculos"] },
-  { href: "/perfil", label: "Perfil", icon: UserRound, match: ["/perfil"] },
+  { href: "/perfil", label: "Perfil", icon: UserRound, match: ["/perfil", "/upgrade"] },
 ];
 
 function isActive(pathname: string, item: NavItem) {

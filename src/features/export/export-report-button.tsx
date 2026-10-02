@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileDown, LoaderCircle } from "lucide-react";
+import { FileDown, LoaderCircle, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { calculateCostBreakdown } from "@/lib/calculations/cost-breakdown";
@@ -11,6 +11,7 @@ import { formatDate, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useData, useVehicleNames } from "@/providers/data-provider";
 import type { Trip } from "@/types";
+import { useUpgrade } from "@/features/subscription/upgrade-provider";
 
 const TOP_N = 5;
 
@@ -38,11 +39,14 @@ export function ExportReportButton({
   compact = false,
   className,
 }: ExportReportButtonProps) {
-  const { costRates } = useData();
+  const { costRates, isPro } = useData();
+  const { openUpgrade } = useUpgrade();
   const vehicleNames = useVehicleNames();
   const [pending, setPending] = useState(false);
 
   async function handleExport() {
+    // Relatórios em PDF são PRO: o botão aparece, mas abre a oferta.
+    if (!isPro) return openUpgrade(kind === "profitability" ? "Relatório de lucratividade" : "Exportação em PDF");
     setPending(true);
     try {
       // Carregado sob demanda: o gerador de PDF só é baixado quando usado.
@@ -103,7 +107,7 @@ export function ExportReportButton({
       disabled={pending}
       aria-label={`${label} em PDF`}
     >
-      {pending ? <LoaderCircle className="animate-spin" /> : <FileDown />}
+      {pending ? <LoaderCircle className="animate-spin" /> : isPro ? <FileDown /> : <Lock />}
       {compact ? "Exportar" : pending ? "Gerando PDF..." : label}
     </Button>
   );

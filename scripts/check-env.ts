@@ -52,6 +52,13 @@ if (problems.length) {
   process.exit(1);
 }
 
+// Pagamentos: sem o segredo, o webhook recusa tudo (401) e ninguém vira PRO. Avisa, sem bloquear o deploy.
+if (!process.env.CAKTO_WEBHOOK_SECRET?.trim()) {
+  console.warn(
+    `⚠ CAKTO_WEBHOOK_SECRET ausente (${target}): o webhook /api/webhooks/cakto vai recusar os pagamentos até ser configurado.`,
+  );
+}
+
 const directNote = direct && pooled && direct.name !== pooled.name ? ` · migrações via ${direct.name}` : "";
 console.log(`✓ Ambiente ok (${target}): app via ${pooled!.name}${directNote} · AUTH_SECRET definido`);
 if (direct?.name === pooled?.name) {

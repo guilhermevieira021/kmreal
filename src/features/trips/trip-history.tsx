@@ -48,7 +48,7 @@ function groupByMonth(trips: Trip[], rates: CostRates): MonthGroup[] {
 }
 
 export function TripHistory() {
-  const { trips, vehicles, costRates, isLoading } = useData();
+  const { trips, vehicles, costRates, isLoading, isPro } = useData();
   const [period, setPeriod] = useState<PeriodId>("all");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
@@ -138,7 +138,7 @@ export function TripHistory() {
           <div className="bg-card mt-4 overflow-hidden rounded-2xl border shadow-xs">
             <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
               <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                Lucro real · {PERIOD_LABELS[period]}
+                {isPro ? "Lucro real" : "Lucro"} · {PERIOD_LABELS[period]}
               </p>
               <Money value={summary.realProfit} size="md" className={valueToneClass(profitTone(summary.realProfit))} />
             </div>
@@ -146,7 +146,7 @@ export function TripHistory() {
               className="bg-muted/40 border-t"
               items={[
                 { label: "Receita", value: formatCurrency(summary.revenue) },
-                { label: "Custo real", value: formatCurrency(summary.realCosts) },
+                { label: isPro ? "Custo real" : "Custos", value: formatCurrency(summary.realCosts) },
                 { label: "KM", value: formatKm(summary.km) },
               ]}
             />
@@ -164,7 +164,9 @@ export function TripHistory() {
                     </p>
                   </div>
                   <div className={cn("shrink-0 text-right", valueToneClass(profitTone(group.summary.realProfit)))}>
-                    <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">Lucro real</p>
+                    <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                      {isPro ? "Lucro real" : "Lucro"}
+                    </p>
                     <Money value={group.summary.realProfit} size="sm" />
                   </div>
                 </div>

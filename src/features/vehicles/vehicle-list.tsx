@@ -9,11 +9,12 @@ import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { Button } from "@/components/ui/button";
 import { summarizeReal } from "@/lib/calculations/real-cost";
 import { useData } from "@/providers/data-provider";
+import { ProBadge } from "@/features/subscription/pro-lock";
 import { useVehiclesHealth } from "./use-vehicle-health";
 import { VehicleCard } from "./vehicle-card";
 
 export function VehicleList() {
-  const { vehicles, trips, costRates, isLoading } = useData();
+  const { vehicles, trips, costRates, isLoading, isPro } = useData();
   const health = useVehiclesHealth();
   const summaries = useMemo(
     () =>
@@ -38,7 +39,7 @@ export function VehicleList() {
           vehicles.length > 1 ? (
             <Button asChild variant="outline" size="sm" className="h-10 rounded-full">
               <Link href="/veiculos/ranking">
-                <Medal /> Ranking
+                <Medal /> Ranking {!isPro && <ProBadge />}
               </Link>
             </Button>
           ) : undefined
@@ -54,7 +55,8 @@ export function VehicleList() {
               vehicle={vehicle}
               tripCount={summaries.get(vehicle.id)?.tripCount ?? 0}
               realCostPerKm={summaries.get(vehicle.id)?.tripCount ? summaries.get(vehicle.id)!.realCostPerKm : null}
-              health={health.get(vehicle.id)?.overall ?? "unknown"}
+              health={isPro ? (health.get(vehicle.id)?.overall ?? "unknown") : "unknown"}
+              pro={isPro}
             />
           ))}
         </ul>

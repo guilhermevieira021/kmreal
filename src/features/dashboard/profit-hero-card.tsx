@@ -1,9 +1,12 @@
-import { Minus, TrendingDown, TrendingUp } from "lucide-react";
+"use client";
+
+import { Lock, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { Money } from "@/components/shared/money";
 import { percentChange } from "@/lib/calculations/metrics";
 import type { RealPeriodSummary } from "@/lib/calculations/real-cost";
 import { formatCurrency, formatKm, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useUpgrade } from "@/features/subscription/upgrade-provider";
 
 interface ProfitHeroCardProps {
   month: RealPeriodSummary;
@@ -11,6 +14,8 @@ interface ProfitHeroCardProps {
   previous: RealPeriodSummary | null;
   /** Ex.: "setembro" */
   previousMonthName: string;
+  /** FREE: lucro operacional e comparação bloqueada */
+  pro: boolean;
 }
 
 /** Diferença menor que isso (R$/km) é tratada como "igual". */
@@ -20,7 +25,8 @@ const SAME_THRESHOLD = 0.01;
  * Primeira pergunta do motorista: "quanto estou ganhando?".
  * Lucro real por km do mês, com a comparação com o mês anterior logo abaixo.
  */
-export function ProfitHeroCard({ month, previous, previousMonthName }: ProfitHeroCardProps) {
+export function ProfitHeroCard({ month, previous, previousMonthName, pro }: ProfitHeroCardProps) {
+  const { openUpgrade } = useUpgrade();
   const perKm = month.realProfitPerKm;
   const losing = perKm < 0;
   const delta = previous ? perKm - previous.realProfitPerKm : null;
@@ -46,7 +52,18 @@ export function ProfitHeroCard({ month, previous, previousMonthName }: ProfitHer
       />
 
       <div className="border-hero-foreground/15 mt-4 border-t pt-3">
-        {delta === null ? (
+        {!pro ? (
+          <button
+            type="button"
+            onClick={() => openUpgrade("Comparativo com o mês anterior")}
+            className="flex items-center gap-2 text-sm font-semibold"
+          >
+            <span className="bg-hero-foreground/15 flex size-7 shrink-0 items-center justify-center rounded-full">
+              <Lock className="size-3.5" aria-hidden />
+            </span>
+            Compare com {previousMonthName} · PRO
+          </button>
+        ) : delta === null ? (
           <p className="text-sm opacity-75">A comparação com o mês anterior aparece quando houver viagens nele.</p>
         ) : (
           <p className="flex items-center gap-2 text-sm font-semibold tabular-nums">
@@ -73,7 +90,8 @@ export function ProfitHeroCard({ month, previous, previousMonthName }: ProfitHer
           </p>
         )}
         <p className="mt-1.5 text-xs tabular-nums opacity-70">
-          {formatCurrency(month.realProfit)} de lucro real em {formatKm(month.km)} neste mês
+          {formatCurrency(month.realProfit)} de {pro ? "lucro real" : "lucro (sem custos fixos e manutenção)"} em{" "}
+          {formatKm(month.km)} neste mês
         </p>
       </div>
     </section>

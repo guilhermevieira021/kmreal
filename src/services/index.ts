@@ -7,6 +7,8 @@ import {
   apiTripRepository,
   apiVehicleRepository,
 } from "./api";
+import type { SubscriptionInfo } from "@/lib/subscription";
+import type { UserProfile } from "@/types";
 import type { LocalSnapshot } from "./local/snapshot";
 
 /**
@@ -19,6 +21,14 @@ export const maintenanceRepository = apiMaintenanceRepository;
 export const settingsRepository = apiSettingsRepository;
 export const authService = apiAuthService;
 export const syncService = apiSyncService;
+
+export interface MeResponse {
+  user: UserProfile;
+  subscription: SubscriptionInfo & { isPro: boolean };
+}
+
+/** Conta logada + plano (o servidor aplica a expiração automática a cada chamada). */
+export const fetchMe = () => api<MeResponse>("/me");
 
 export interface ImportResult {
   vehicles: number;

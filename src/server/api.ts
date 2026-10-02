@@ -14,7 +14,9 @@ interface HandlerArgs<P> {
 
 /** Converte erros em respostas JSON padronizadas: { error, issues? }. */
 export function errorResponse(error: unknown): NextResponse {
-  if (error instanceof HttpError) return NextResponse.json({ error: error.message }, { status: error.status });
+  if (error instanceof HttpError) {
+    return NextResponse.json({ error: error.message, ...(error.code ? { code: error.code } : {}) }, { status: error.status });
+  }
   if (error instanceof ZodError) {
     return NextResponse.json(
       { error: "Dados inválidos", issues: error.issues.map((i) => ({ path: i.path.join("."), message: i.message })) },

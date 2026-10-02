@@ -1,3 +1,4 @@
+import { requirePro } from "@/server/subscription";
 import { authed, parseBody } from "@/server/api";
 import { notFound } from "@/server/errors";
 import { maintenances } from "@/server/repositories";
@@ -11,8 +12,12 @@ export const GET = authed<Params>(async ({ userId, params }) => {
   return found;
 });
 
-export const PATCH = authed<Params>(async ({ request, userId, params }) =>
-  maintenances.update(userId, params.id, await parseBody(request, maintenanceInputSchema.partial())),
-);
+export const PATCH = authed<Params>(async ({ request, userId, params }) => {
+  await requirePro(userId);
+  return maintenances.update(userId, params.id, await parseBody(request, maintenanceInputSchema.partial()));
+});
 
-export const DELETE = authed<Params>(({ userId, params }) => maintenances.remove(userId, params.id));
+export const DELETE = authed<Params>(async ({ userId, params }) => {
+  await requirePro(userId);
+  return maintenances.remove(userId, params.id);
+});

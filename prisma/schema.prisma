@@ -38,6 +38,17 @@ enum MaintenanceStatus {
   planned
 }
 
+enum Plan {
+  FREE
+  PRO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELED
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -45,6 +56,18 @@ model User {
   passwordHash String
   /// Quando os dados do localStorage (protótipo) foram importados — evita importar duas vezes
   localImportAt DateTime?
+
+  // ---- Assinatura (regra de acesso: src/lib/subscription.ts → hasProAccess) ----
+  /// Todo usuário novo começa no FREE
+  plan                  Plan                @default(FREE)
+  /// null enquanto nunca assinou
+  subscriptionStatus    SubscriptionStatus?
+  subscriptionStartedAt DateTime?
+  subscriptionExpiresAt DateTime?
+  /// E-mail usado no checkout da Cakto (pode diferir do login, ex.: ativação manual)
+  caktoCustomerEmail    String?
+  caktoOrderId          String?
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -53,6 +76,7 @@ model User {
   maintenances        Maintenance[]
   goal                Goal?
   passwordResetTokens PasswordResetToken[]
+  paymentEvents       PaymentEvent[]
 }
 
 model Vehicle {
@@ -179,4 +203,25 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Registro de cada webhook de pagamento recebido (auditoria + idempotência).
+/// Pagamento de e-mail ainda sem conta fica pendente (userId null) e é aplicado no cadastro.
+model PaymentEvent {
+  id        String    @id @default(uuid())
+  provider  String    @default("cakto")
+  event     String
+  orderId   String
+  email     String
+  status    String
+  userId    String?
+  /// Quando o evento liberou/estendeu o PRO de um usuário
+  appliedAt DateTime?
+  payload   Json
+  createdAt DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, orderId, event])
+  @@index([email, appliedAt])
 }

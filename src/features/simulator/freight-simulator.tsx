@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, CircleAlert, CircleCheck, CircleX, Info, Truck } from "lucide-react";
+import { ArrowRight, BarChart3, Calculator, CircleAlert, CircleCheck, CircleX, Info, Truck } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { AmountInput } from "@/components/shared/amount-input";
 import { ChipGroup } from "@/components/shared/chip-group";
@@ -33,6 +33,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PREFILL_PARAMS } from "@/features/trips/trip-wizard/prefill";
 import { useData } from "@/providers/data-provider";
+import { ProLockedCard } from "@/features/subscription/pro-lock";
 
 const VERDICTS: Record<FreightVerdict, { label: string; icon: typeof CircleCheck; className: string }> = {
   good: { label: "Frete viável", icon: CircleCheck, className: "bg-positive/12 text-positive" },
@@ -49,7 +50,7 @@ function describeBasis(basis: CostBasis): string {
 }
 
 export function FreightSimulator() {
-  const { vehicles, trips, costRates, isLoading } = useData();
+  const { vehicles, trips, costRates, isLoading, isPro } = useData();
   const [selectedId, setSelectedId] = useState<string>();
   const [freight, setFreight] = useState("");
   const [km, setKm] = useState("");
@@ -167,34 +168,58 @@ export function FreightSimulator() {
               </div>
               <div className="flex items-end justify-between gap-3 p-4">
                 <div className="min-w-0">
-                  <p className="text-muted-foreground text-xs font-medium">Lucro real por KM</p>
+                  <p className="text-muted-foreground text-xs font-medium">{isPro ? "Lucro real por KM" : "Lucro estimado por KM"}</p>
                   <Money value={result.realProfitPerKm} size="lg" suffix="/km" className={valueToneClass(tone)} />
                 </div>
                 <div className="text-right">
-                  <p className="text-muted-foreground text-xs font-medium">Lucro real</p>
+                  <p className="text-muted-foreground text-xs font-medium">{isPro ? "Lucro real" : "Lucro estimado"}</p>
                   <Money value={result.realProfit} size="md" className={valueToneClass(tone)} />
                 </div>
               </div>
-              <MetricGrid
-                cols={2}
-                className="bg-muted/40 border-t"
-                items={[
-                  { label: "Receita/km", value: formatCurrencyPerKm(result.revenuePerKm) },
-                  { label: "Custo operacional/km", value: formatCurrencyPerKm(result.operationalCostPerKm) },
-                  { label: "Custo real/km", value: formatCurrencyPerKm(result.realCostPerKm) },
-                  { label: "Margem real", value: formatPercent(result.realMargin), tone },
-                ]}
-              />
-              <MetricGrid
-                className="border-t"
-                items={[
-                  { label: "Operacional", value: formatCurrency(result.operationalCost) },
-                  { label: "Fixos + manut.", value: formatCurrency(result.overheadCost) },
-                  result.realProfitPerHour !== null
-                    ? { label: "Lucro/hora", value: formatCurrency(result.realProfitPerHour), tone }
-                    : { label: "Lucro/hora", value: "—", tone: "muted" },
-                ]}
-              />
+              {isPro ? (
+                <>
+                  <MetricGrid
+                    cols={2}
+                    className="bg-muted/40 border-t"
+                    items={[
+                      { label: "Receita/km", value: formatCurrencyPerKm(result.revenuePerKm) },
+                      { label: "Custo operacional/km", value: formatCurrencyPerKm(result.operationalCostPerKm) },
+                      { label: "Custo real/km", value: formatCurrencyPerKm(result.realCostPerKm) },
+                      { label: "Margem real", value: formatPercent(result.realMargin), tone },
+                    ]}
+                  />
+                  <MetricGrid
+                    className="border-t"
+                    items={[
+                      { label: "Operacional", value: formatCurrency(result.operationalCost) },
+                      { label: "Fixos + manut.", value: formatCurrency(result.overheadCost) },
+                      result.realProfitPerHour !== null
+                        ? { label: "Lucro/hora", value: formatCurrency(result.realProfitPerHour), tone }
+                        : { label: "Lucro/hora", value: "—", tone: "muted" },
+                    ]}
+                  />
+                </>
+              ) : (
+                <>
+                  <MetricGrid
+                    className="bg-muted/40 border-t"
+                    items={[
+                      { label: "Receita/km", value: formatCurrencyPerKm(result.revenuePerKm) },
+                      { label: "Custo/km", value: formatCurrencyPerKm(result.operationalCostPerKm) },
+                      { label: "Margem", value: formatPercent(result.realMargin), tone },
+                    ]}
+                  />
+                  <div className="border-t p-3">
+                    <ProLockedCard
+                      feature="Simulador avançado"
+                      icon={Calculator}
+                      title="Lucro real projetado"
+                      description="Inclui custos fixos, desgaste e manutenção: veja se o frete paga o veículo."
+                      className="shadow-none"
+                    />
+                  </div>
+                </>
+              )}
               {result.operationalProfit > 0 && result.realProfit < 0 && (
                 <p className="text-destructive bg-destructive/5 border-t px-4 py-3 text-sm font-medium">
                   Paga o combustível e o pedágio, mas não cobre os custos do veículo.
@@ -214,7 +239,16 @@ export function FreightSimulator() {
           )}
         </section>
 
-        {comparison && baseline && (
+        {!isPro && result && (
+          <ProLockedCard
+            feature="Comparação com média histórica"
+            icon={BarChart3}
+            title="Este frete vs sua média"
+            description="Compare receita, custo e lucro por KM com o histórico do veículo."
+          />
+        )}
+
+        {isPro && comparison && baseline && (
           <Section title="Este frete vs sua média">
             <div className="bg-card overflow-hidden rounded-2xl border shadow-xs">
               <div className="text-muted-foreground grid grid-cols-[1fr_auto_auto_4.5rem] gap-3 border-b px-4 py-2 text-[11px] font-semibold tracking-wide uppercase">

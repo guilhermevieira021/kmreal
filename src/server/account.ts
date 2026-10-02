@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { createResetToken, hashPassword, hashToken } from "./auth/password";
 import { appUrl, passwordResetMail, sendMail } from "./auth/mailer";
 import { getDb } from "./db";
+import { claimPendingPurchases } from "./subscription";
 import { badRequest, conflict } from "./errors";
 
 const RESET_TTL_MS = 60 * 60 * 1000; // 1 hora
@@ -18,6 +19,8 @@ export async function registerUser(input: { name: string; email: string; passwor
       },
       select: { id: true, name: true, email: true },
     });
+    // Comprou o PRO antes de criar a conta? Ativa agora.
+    await claimPendingPurchases(user.id, user.email);
     return user;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

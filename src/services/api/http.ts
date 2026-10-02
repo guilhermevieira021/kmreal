@@ -4,6 +4,8 @@ export class ApiError extends Error {
     readonly status: number,
     message: string,
     readonly issues?: { path: string; message: string }[],
+    /** Código do servidor (ex.: PRO_REQUIRED) */
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -37,8 +39,12 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
     throw new ApiError(401, "Sua sessão expirou. Entre novamente.");
   }
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { error?: string; issues?: ApiError["issues"] };
-    throw new ApiError(response.status, body.error ?? "Algo deu errado. Tente de novo.", body.issues);
+    const body = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      issues?: ApiError["issues"];
+      code?: string;
+    };
+    throw new ApiError(response.status, body.error ?? "Algo deu errado. Tente de novo.", body.issues, body.code);
   }
   if (response.status === 202 || response.status === 204) return undefined as T;
   return (await response.json()) as T;

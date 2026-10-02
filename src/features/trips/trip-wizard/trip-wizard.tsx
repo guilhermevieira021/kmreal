@@ -10,6 +10,7 @@ import { Money } from "@/components/shared/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VehiclePicker } from "@/features/vehicles/vehicle-picker";
+import { useData } from "@/providers/data-provider";
 import { calculateRealTrip, type CostRates } from "@/lib/calculations/real-cost";
 import { calculateFuelCost } from "@/lib/calculations/trip";
 import { formatCurrency, formatNumber, todayISO } from "@/lib/format";
@@ -75,6 +76,7 @@ function initialValues(vehicles: Vehicle[], recentTrips: Trip[], initial?: TripW
 
 export function TripWizard({ vehicles, recentTrips, costRates, initial, editing, closeHref, onSubmit }: TripWizardProps) {
   const router = useRouter();
+  const { isPro } = useData();
   const isEdit = Boolean(editing);
   const [stepIndex, setStepIndex] = useState(0);
   const [errors, setErrors] = useState<WizardErrors>({});
@@ -310,7 +312,7 @@ export function TripWizard({ vehicles, recentTrips, costRates, initial, editing,
             <TripResults summary={summary} />
           ) : (
             <div className="text-muted-foreground rounded-2xl border border-dashed px-4 py-6 text-center text-sm">
-              O lucro real aparece aqui conforme você preenche.
+              O lucro aparece aqui conforme você preenche.
             </div>
           )}
         </section>
@@ -320,7 +322,7 @@ export function TripWizard({ vehicles, recentTrips, costRates, initial, editing,
       <footer className="bg-background/95 sticky bottom-0 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
         {summary.revenue > 0 && (
           <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Lucro real</span>
+            <span className="text-muted-foreground">{isPro ? "Lucro real" : "Lucro"}</span>
             <Money
               value={summary.realProfit}
               size="sm"

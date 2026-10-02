@@ -5,6 +5,8 @@ export class HttpError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** Código para o cliente reagir (ex.: PRO_REQUIRED abre a oferta) */
+    readonly code?: string,
   ) {
     super(message);
   }

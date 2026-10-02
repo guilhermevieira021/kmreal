@@ -1,7 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 
 /** Rotas da área logada (grupo (app)). */
-const PRIVATE_PREFIXES = ["/dashboard", "/historico", "/viagens", "/veiculos", "/perfil", "/saude", "/simulador"];
+const PRIVATE_PREFIXES = ["/dashboard", "/historico", "/viagens", "/veiculos", "/perfil", "/saude", "/simulador", "/upgrade"];
 /** Telas de autenticação: quem já está logado vai direto para o app. */
 const AUTH_PAGES = ["/login", "/cadastro", "/recuperar-senha", "/redefinir-senha"];
 

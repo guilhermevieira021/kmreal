@@ -74,6 +74,7 @@ Defina `DATABASE_URL` (com pooler, se houver) e `DIRECT_URL` (direta). Exija SSL
 | `DATABASE_URL` | do passo 3 |
 | `DIRECT_URL` | do passo 3 |
 | `AUTH_SECRET` | saída de `npx auth secret` (um valor diferente por ambiente é o ideal) |
+| `CAKTO_WEBHOOK_SECRET` | o secret do webhook da Cakto (passo 6b) |
 | `RESEND_API_KEY` | chave da Resend (passo 6) |
 | `EMAIL_FROM` | `KmReal <nao-responda@seudominio.com.br>` |
 | `AUTH_URL` / `NEXTAUTH_URL` | **só se usar domínio próprio**: `https://app.seudominio.com.br` |
@@ -107,6 +108,15 @@ e defina `NEXT_PUBLIC_ENABLE_DEMO_LOGIN=true` na Vercel para exibir o botão. N�
 3. `EMAIL_FROM` com um endereço desse domínio.
 
 Sem `RESEND_API_KEY` o app funciona, mas o link de redefinição só aparece nos **logs da função** (Vercel → Logs) — útil para teste, inviável para usuários reais.
+
+## 6b. Pagamentos (Cakto)
+
+1. Painel da Cakto → produto **KmReal PRO** → **Webhooks** (ou Integrações) → adicionar.
+2. URL: `https://SEU-APP.vercel.app/api/webhooks/cakto` — evento: **compra aprovada** (`purchase_approved`).
+3. Copie o **secret** que a Cakto envia nas notificações desse webhook e cadastre como `CAKTO_WEBHOOK_SECRET` na Vercel (Production). Redeploy.
+4. Confira `/api/health` → `"payments": "configured"`. Faça uma compra de teste com o mesmo e-mail de uma conta: o Perfil deve mostrar **PRO até dd/mm**.
+
+Sem o secret o app funciona, mas todo webhook é recusado (401) e ninguém vira PRO. Fluxos completos em [ASSINATURAS.md](ASSINATURAS.md).
 
 ## 7. Domínio próprio (opcional)
 

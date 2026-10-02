@@ -43,6 +43,12 @@ export const vehicleInputSchema = z.object({
   wearItems: z.array(wearItemSchema).max(30),
 });
 
+/** Veículo com custos fixos ou valores de vida útil preenchidos (recursos PRO). */
+export function usesProVehicleData(input: z.infer<typeof vehicleInputSchema>): boolean {
+  const { insuranceExpiresOn, ...amounts } = input.fixedCosts;
+  return Boolean(insuranceExpiresOn) || Object.values(amounts).some((n) => n > 0) || input.wearItems.some((w) => w.cost > 0);
+}
+
 export const tripInputSchema = z.object({
   date: isoDate,
   vehicleId: z.string().min(1).nullable(),

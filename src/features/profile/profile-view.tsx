@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  Crown,
   Calculator,
   ChevronRight,
   Cloud,
@@ -26,6 +27,8 @@ import { ThemeSheet } from "@/features/appearance/theme-sheet";
 import { GoalSheet } from "@/features/goal/goal-sheet";
 import { getTheme } from "@/lib/themes";
 import { useTheme } from "@/providers/theme-provider";
+import { ProBadge } from "@/features/subscription/pro-lock";
+import { formatDate } from "@/lib/format";
 import { summarizeReal } from "@/lib/calculations/real-cost";
 import { formatCurrency, formatCurrencyPerKm, formatKm, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -54,11 +57,14 @@ function MenuIcon({ icon: Icon, className }: { icon: LucideIcon; className?: str
   );
 }
 
-function MenuLink({ href, icon, label }: { href: string; icon: LucideIcon; label: string }) {
+function MenuLink({ href, icon, label, locked }: { href: string; icon: LucideIcon; label: string; locked?: boolean }) {
   return (
     <Link href={href} className={rowClass}>
       <MenuIcon icon={icon} />
-      <span className="flex-1">{label}</span>
+      <span className="flex flex-1 items-center gap-2">
+        {label}
+        {locked && <ProBadge />}
+      </span>
       <ChevronRight className="text-muted-foreground size-5" />
     </Link>
   );
@@ -66,7 +72,8 @@ function MenuLink({ href, icon, label }: { href: string; icon: LucideIcon; label
 
 export function ProfileView() {
   const router = useRouter();
-  const { trips, costRates, settings, isLoading } = useData();
+  const { trips, costRates, settings, isLoading, isPro, account } = useData();
+  const expiresAt = account?.subscription.expiresAt;
   const [profile, setProfile] = useState<UserProfile>();
   const [goalOpen, setGoalOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
@@ -128,10 +135,11 @@ export function ProfileView() {
       ) : (
         <div className="mt-6 grid gap-3">
           <section className="bg-hero text-hero-foreground rounded-3xl p-5 shadow-lg" aria-label="Lucro acumulado">
-            <p className="text-sm font-medium opacity-80">Lucro real acumulado</p>
+            <p className="text-sm font-medium opacity-80">{isPro ? "Lucro real acumulado" : "Lucro acumulado"}</p>
             <Money value={totals.realProfit} size="xl" className={cn("mt-2", totals.realProfit < 0 && "text-hero-negative")} />
             <p className="mt-3 text-sm tabular-nums opacity-70">
-              {formatCurrencyPerKm(totals.realProfitPerKm)} · margem real {formatPercent(totals.realMargin)}
+              {formatCurrencyPerKm(totals.realProfitPerKm)} · margem {isPro && "real "}
+              {formatPercent(totals.realMargin)}
             </p>
           </section>
           <div className="grid grid-cols-2 gap-3">
@@ -142,6 +150,14 @@ export function ProfileView() {
       )}
 
       <div className="bg-card mt-6 divide-y overflow-hidden rounded-2xl border shadow-xs">
+        <Link href="/upgrade" className={rowClass}>
+          <MenuIcon icon={Crown} className={isPro ? "bg-primary text-primary-foreground" : undefined} />
+          <span className="flex-1">Plano</span>
+          <span className={cn("text-sm", isPro ? "text-positive font-semibold" : "text-primary-strong font-semibold")}>
+            {isPro ? `PRO${expiresAt ? ` até ${formatDate(expiresAt.slice(0, 10))}` : ""}` : "FREE · Assinar PRO"}
+          </span>
+          <ChevronRight className="text-muted-foreground size-5" />
+        </Link>
         <button type="button" className={rowClass} onClick={() => setGoalOpen(true)}>
           <MenuIcon icon={Target} />
           <span className="flex-1">Meta de lucro mensal</span>
@@ -154,8 +170,8 @@ export function ProfileView() {
           <span className="text-muted-foreground text-sm">{getTheme(theme).name}</span>
           <ChevronRight className="text-muted-foreground size-5" />
         </button>
-        <MenuLink href="/saude" icon={HeartPulse} label="Saúde financeira" />
-        <MenuLink href="/veiculos/ranking" icon={Medal} label="Ranking de veículos" />
+        <MenuLink href="/saude" icon={HeartPulse} label="Saúde financeira" locked={!isPro} />
+        <MenuLink href="/veiculos/ranking" icon={Medal} label="Ranking de veículos" locked={!isPro} />
         <MenuLink href="/simulador" icon={Calculator} label="Simulador de frete" />
         <MenuLink href="/veiculos" icon={Truck} label="Meus veículos" />
       </div>

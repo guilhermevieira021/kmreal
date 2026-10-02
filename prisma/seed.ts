@@ -26,7 +26,17 @@ async function main() {
     // Recria do zero a conta demo (cascade remove veículos, viagens, manutenções e meta).
     await db.user.deleteMany({ where: { email } });
     const user = await db.user.create({
-      data: { name: mockUser.name, email, passwordHash, goal: { create: { monthlyProfitTarget: DEMO_MONTHLY_GOAL } } },
+      data: {
+        name: mockUser.name,
+        email,
+        passwordHash,
+        goal: { create: { monthlyProfitTarget: DEMO_MONTHLY_GOAL } },
+        // Conta demo mostra o produto completo: PRO por 1 ano.
+        plan: "PRO",
+        subscriptionStatus: "ACTIVE",
+        subscriptionStartedAt: new Date(),
+        subscriptionExpiresAt: new Date(Date.now() + 365 * 86_400_000),
+      },
     });
 
     const trips = buildMockTrips();
