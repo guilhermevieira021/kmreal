@@ -64,6 +64,10 @@ model User {
   subscriptionStatus    SubscriptionStatus?
   subscriptionStartedAt DateTime?
   subscriptionExpiresAt DateTime?
+  /// Cancelamento pedido na Cakto: mantém o acesso até subscriptionExpiresAt, depois vira CANCELED
+  subscriptionCanceledAt DateTime?
+  /// Id da assinatura recorrente na Cakto (data.subscription.id)
+  caktoSubscriptionId    String?
   /// E-mail usado no checkout da Cakto (pode diferir do login, ex.: ativação manual)
   caktoCustomerEmail    String?
   caktoOrderId          String?

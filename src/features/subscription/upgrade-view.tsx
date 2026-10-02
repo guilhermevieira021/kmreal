@@ -84,7 +84,9 @@ export function UpgradeView() {
             <BadgeCheck className="size-6" /> Você é PRO
           </p>
           <p className="mt-1 text-sm opacity-80">
-            Ativo desde {isoDay(subscription.startedAt)} · renova até {isoDay(subscription.expiresAt)}
+            {subscription.canceledAt
+              ? `Assinatura cancelada · PRO liberado até ${isoDay(subscription.expiresAt)}`
+              : `Ativo desde ${isoDay(subscription.startedAt)} · renova até ${isoDay(subscription.expiresAt)}`}
           </p>
         </section>
         <Section title="Incluso no seu plano" className="mt-6">
@@ -96,9 +98,11 @@ export function UpgradeView() {
             ))}
           </ul>
         </Section>
-        <Section title="Renovar antes do vencimento" className="mt-6">
+        <Section title={subscription.canceledAt ? "Continuar no PRO" : "Renovar antes do vencimento"} className="mt-6">
           <p className="text-muted-foreground px-1 text-sm">
-            Pagando antes de {isoDay(subscription.expiresAt)}, os 30 dias novos somam ao prazo atual.
+            {subscription.canceledAt
+              ? `Você cancelou a renovação. Assine de novo antes de ${isoDay(subscription.expiresAt)} para não perder os recursos.`
+              : `Pagando antes de ${isoDay(subscription.expiresAt)}, os 30 dias novos somam ao prazo atual.`}
           </p>
           <SubscribeButton className="mt-2" />
         </Section>
@@ -110,10 +114,12 @@ export function UpgradeView() {
     <>
       <PageHeader title="KmReal PRO" description="Descubra seu lucro de verdade" backHref="/perfil" />
 
-      {subscription.status === "EXPIRED" && subscription.expiresAt && (
+      {(subscription.status === "EXPIRED" || subscription.status === "CANCELED") && subscription.expiresAt && (
         <p role="status" className="bg-warning/12 text-warning mb-3 rounded-xl px-4 py-3 text-sm font-medium">
-          Sua assinatura PRO venceu em {isoDay(subscription.expiresAt)}. Assine de novo para recuperar os recursos — seus
-          dados continuam salvos.
+          {subscription.status === "CANCELED"
+            ? `Sua assinatura PRO foi cancelada (acesso até ${isoDay(subscription.expiresAt)}).`
+            : `Sua assinatura PRO venceu em ${isoDay(subscription.expiresAt)}.`}{" "}
+          Assine de novo para recuperar os recursos — seus dados continuam salvos.
         </p>
       )}
 

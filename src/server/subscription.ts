@@ -13,10 +13,12 @@ const toInfo = (row: SubscriptionRow): SubscriptionInfo => ({
   status: row.subscriptionStatus,
   startedAt: row.subscriptionStartedAt?.toISOString() ?? null,
   expiresAt: row.subscriptionExpiresAt?.toISOString() ?? null,
+  canceledAt: row.subscriptionCanceledAt?.toISOString() ?? null,
 });
 
 /**
- * Lê a assinatura e aplica a EXPIRAÇÃO AUTOMÁTICA: PRO vencido vira FREE/EXPIRED na hora.
+ * Lê a assinatura e aplica a EXPIRAÇÃO AUTOMÁTICA: PRO vencido vira FREE na hora —
+ * status EXPIRED, ou CANCELED se o cliente tinha cancelado a recorrência.
  * Chamado sempre que o app abre (/api/me) e em toda checagem de acesso PRO.
  */
 export async function getSubscription(userId: string): Promise<SubscriptionInfo & { isPro: boolean }> {
@@ -27,7 +29,7 @@ export async function getSubscription(userId: string): Promise<SubscriptionInfo 
     // updateMany condicional: se um pagamento acabou de renovar, não rebaixa por engano.
     await db.user.updateMany({
       where: { id: userId, plan: "PRO", OR: [{ subscriptionExpiresAt: null }, { subscriptionExpiresAt: { lte: new Date() } }] },
-      data: { plan: "FREE", subscriptionStatus: "EXPIRED" },
+      data: { plan: "FREE", subscriptionStatus: row.subscriptionCanceledAt ? "CANCELED" : "EXPIRED" },
     });
     row = await db.user.findUniqueOrThrow({ where: { id: userId }, select: subscriptionSelect });
   }
@@ -43,18 +45,40 @@ export async function requirePro(userId: string): Promise<void> {
 
 /* ---------- Webhook Cakto ---------- */
 
-export interface CaktoPurchase {
+/** Eventos que liberam/renovam 30 dias de PRO. */
+export const GRANT_EVENTS = ["purchase_approved", "subscription_renewed"] as const;
+/** Dinheiro devolvido: acesso cai na hora. */
+export const REVOKE_EVENTS = ["refund", "chargeback"] as const;
+/** Recorrência cancelada: acesso vai até o fim do período pago. */
+export const CANCEL_EVENTS = ["subscription_canceled"] as const;
+
+export type CaktoEventKind = "grant" | "revoke" | "cancel" | "ignore";
+
+export function classifyCaktoEvent(event: string): CaktoEventKind {
+  if ((GRANT_EVENTS as readonly string[]).includes(event)) return "grant";
+  if ((REVOKE_EVENTS as readonly string[]).includes(event)) return "revoke";
+  if ((CANCEL_EVENTS as readonly string[]).includes(event)) return "cancel";
+  return "ignore";
+}
+
+export interface CaktoEvent {
   event: string;
   orderId: string;
   email: string;
   status: string;
+  subscriptionId: string | null;
+  /** Data do cancelamento informada pela Cakto (subscription.canceledAt) */
+  canceledAt: Date | null;
   payload: Prisma.InputJsonValue;
 }
 
-export type ActivationResult =
+export type WebhookResult =
   | { result: "activated"; userId: string; expiresAt: string }
+  | { result: "canceled"; userId: string; accessUntil: string | null }
+  | { result: "revoked"; userId: string }
   | { result: "duplicate" }
-  | { result: "pending" };
+  | { result: "pending" }
+  | { result: "no_account" };
 
 /** Comparação de segredo em tempo constante. */
 export function secretMatches(received: unknown, expected: string | undefined): boolean {
@@ -65,48 +89,103 @@ export function secretMatches(received: unknown, expected: string | undefined): 
 }
 
 /**
- * Aplica uma compra aprovada (já validada): registra o evento (idempotente pelo id do pedido)
- * e ativa o usuário com o mesmo e-mail. Sem conta com esse e-mail, fica pendente até o cadastro.
+ * Aplica um evento da Cakto já validado. Todo evento tratado é registrado em PaymentEvent
+ * (idempotente: mesmo pedido + mesmo evento = "duplicate", nada muda).
+ *
+ * - grant  (purchase_approved, subscription_renewed): +30 dias de PRO; sem conta → pendente
+ * - cancel (subscription_canceled): marca o cancelamento; o PRO segue até o vencimento pago
+ * - revoke (refund, chargeback): PRO removido na hora (status CANCELED)
  */
-export async function applyCaktoPurchase(purchase: CaktoPurchase): Promise<ActivationResult> {
+export async function applyCaktoEvent(event: CaktoEvent, kind: Exclude<CaktoEventKind, "ignore">): Promise<WebhookResult> {
   const db = getDb();
   return db.$transaction(async (tx) => {
     const existing = await tx.paymentEvent.findUnique({
-      where: { provider_orderId_event: { provider: "cakto", orderId: purchase.orderId, event: purchase.event } },
+      where: { provider_orderId_event: { provider: "cakto", orderId: event.orderId, event: event.event } },
     });
     if (existing) return { result: "duplicate" } as const;
 
-    const user = await tx.user.findUnique({ where: { email: purchase.email }, select: { id: true } });
+    const user = await tx.user.findUnique({ where: { email: event.email }, select: { id: true } });
     const now = new Date();
     await tx.paymentEvent.create({
       data: {
         provider: "cakto",
-        event: purchase.event,
-        orderId: purchase.orderId,
-        email: purchase.email,
-        status: purchase.status,
-        payload: purchase.payload,
+        event: event.event,
+        orderId: event.orderId,
+        email: event.email,
+        status: event.status,
+        payload: event.payload,
         userId: user?.id ?? null,
-        appliedAt: user ? now : null,
+        // Só compras sem conta ficam "pendentes" (appliedAt null) para o cadastro aplicar.
+        appliedAt: user || kind !== "grant" ? now : null,
       },
     });
-    if (!user) return { result: "pending" } as const;
 
-    const updated = await grantPro(tx, user.id, { orderId: purchase.orderId, email: purchase.email, paidAt: now });
-    return { result: "activated", userId: user.id, expiresAt: updated.subscriptionExpiresAt!.toISOString() } as const;
+    if (!user) {
+      if (kind === "revoke") {
+        // Reembolso antes de criar a conta: anula a compra pendente desse pedido.
+        await tx.paymentEvent.updateMany({
+          where: { orderId: event.orderId, appliedAt: null },
+          data: { appliedAt: now },
+        });
+      }
+      return { result: kind === "grant" ? "pending" : "no_account" } as const;
+    }
+
+    if (kind === "grant") {
+      const updated = await grantPro(tx, user.id, {
+        orderId: event.orderId,
+        email: event.email,
+        paidAt: now,
+        subscriptionId: event.subscriptionId,
+      });
+      return { result: "activated", userId: user.id, expiresAt: updated.subscriptionExpiresAt!.toISOString() } as const;
+    }
+
+    if (kind === "cancel") {
+      // Mantém plan/status/vencimento: o acesso pago continua até subscriptionExpiresAt.
+      // No vencimento, a expiração automática grava CANCELED em vez de EXPIRED.
+      const updated = await tx.user.update({
+        where: { id: user.id },
+        data: {
+          subscriptionCanceledAt: event.canceledAt ?? now,
+          ...(event.subscriptionId ? { caktoSubscriptionId: event.subscriptionId } : {}),
+        },
+        select: subscriptionSelect,
+      });
+      if (!hasProAccess(updated, now)) {
+        await tx.user.update({ where: { id: user.id }, data: { plan: "FREE", subscriptionStatus: "CANCELED" } });
+      }
+      return {
+        result: "canceled",
+        userId: user.id,
+        accessUntil: hasProAccess(updated, now) ? updated.subscriptionExpiresAt!.toISOString() : null,
+      } as const;
+    }
+
+    // revoke
+    await tx.user.update({
+      where: { id: user.id },
+      data: {
+        plan: "FREE",
+        subscriptionStatus: "CANCELED",
+        subscriptionExpiresAt: now,
+        subscriptionCanceledAt: now,
+      },
+    });
+    return { result: "revoked", userId: user.id } as const;
   });
 }
 
 /**
- * Pagamento feito antes de criar a conta (ou com a conta criada depois): ao cadastrar,
- * aplica compras pendentes do mesmo e-mail feitas nos últimos 30 dias.
+ * Pagamento feito antes de criar a conta: ao cadastrar, aplica compras/renovações pendentes
+ * do mesmo e-mail feitas nos últimos 30 dias (reembolsadas já foram anuladas).
  */
 export async function claimPendingPurchases(userId: string, email: string): Promise<boolean> {
   const db = getDb();
   const since = new Date(Date.now() - PRO_PERIOD_DAYS * DAY_MS);
   return db.$transaction(async (tx) => {
     const pending = await tx.paymentEvent.findMany({
-      where: { email, appliedAt: null, createdAt: { gte: since } },
+      where: { email, appliedAt: null, createdAt: { gte: since }, event: { in: [...GRANT_EVENTS] } },
       orderBy: { createdAt: "asc" },
     });
     for (const event of pending) {

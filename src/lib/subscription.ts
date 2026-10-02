@@ -12,6 +12,8 @@ export interface SubscriptionInfo {
   startedAt: string | null;
   /** ISO */
   expiresAt: string | null;
+  /** ISO — recorrência cancelada na Cakto (o acesso pago segue até expiresAt) */
+  canceledAt: string | null;
 }
 
 /** Campos mínimos para decidir o acesso (aceita o registro do banco ou o DTO da API). */

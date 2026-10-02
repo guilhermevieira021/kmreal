@@ -13,18 +13,28 @@ export const subscriptionSelect = {
   subscriptionStatus: true,
   subscriptionStartedAt: true,
   subscriptionExpiresAt: true,
+  subscriptionCanceledAt: true,
 } satisfies Prisma.UserSelect;
 
 export type SubscriptionRow = Prisma.UserGetPayload<{ select: typeof subscriptionSelect }>;
 
+interface GrantInput {
+  orderId: string | null;
+  email: string;
+  paidAt: Date;
+  /** Id da assinatura recorrente na Cakto, quando houver */
+  subscriptionId?: string | null;
+}
+
 /**
  * Libera/renova 30 dias de PRO. Renovação antes do vencimento soma a partir do vencimento
  * atual (o motorista não perde dias pagos); senão, conta a partir do pagamento.
+ * Um pagamento novo desfaz um cancelamento anterior (o cliente voltou a assinar).
  */
 export async function grantPro(
   tx: Prisma.TransactionClient,
   userId: string,
-  { orderId, email, paidAt }: { orderId: string | null; email: string; paidAt: Date },
+  { orderId, email, paidAt, subscriptionId }: GrantInput,
 ): Promise<SubscriptionRow> {
   const current = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: subscriptionSelect });
   const active = hasProAccess(current, paidAt);
@@ -37,8 +47,10 @@ export async function grantPro(
       subscriptionStatus: "ACTIVE",
       subscriptionStartedAt: active ? current.subscriptionStartedAt : paidAt,
       subscriptionExpiresAt: new Date(base.getTime() + PRO_PERIOD_DAYS * DAY_MS),
+      subscriptionCanceledAt: null,
       caktoCustomerEmail: email,
       ...(orderId ? { caktoOrderId: orderId } : {}),
+      ...(subscriptionId ? { caktoSubscriptionId: subscriptionId } : {}),
     },
     select: subscriptionSelect,
   });

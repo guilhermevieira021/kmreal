@@ -154,7 +154,9 @@ export function ProfileView() {
           <MenuIcon icon={Crown} className={isPro ? "bg-primary text-primary-foreground" : undefined} />
           <span className="flex-1">Plano</span>
           <span className={cn("text-sm", isPro ? "text-positive font-semibold" : "text-primary-strong font-semibold")}>
-            {isPro ? `PRO${expiresAt ? ` até ${formatDate(expiresAt.slice(0, 10))}` : ""}` : "FREE · Assinar PRO"}
+            {isPro
+              ? `PRO${expiresAt ? ` até ${formatDate(expiresAt.slice(0, 10))}` : ""}${account?.subscription.canceledAt ? " · cancelada" : ""}`
+              : "FREE · Assinar PRO"}
           </span>
           <ChevronRight className="text-muted-foreground size-5" />
         </Link>

@@ -51,18 +51,30 @@ O plano é sempre lido **do banco**, não do token de sessão: ativação e expi
 3. **ASSINAR PRO** abre o checkout da Cakto em nova aba (com o e-mail da conta sugerido no link).
 4. Paga. Ao voltar ao app, o plano é rechecado automaticamente (também há o botão "Atualizar meu plano" em `/upgrade`).
 
-## Fluxo de ativação (`POST /api/webhooks/cakto`)
+## Eventos da Cakto (`POST /api/webhooks/cakto`)
 
-1. Cakto envia `{ secret, event, data: { customer: { email }, status, id } }`.
-2. Validação — qualquer falha responde **401**: segredo (comparação em tempo constante com `CAKTO_WEBHOOK_SECRET`), JSON válido, `event = purchase_approved`, `status = paid`, e-mail e id presentes.
-3. Registra o evento em `PaymentEvent` (pedido repetido → **200 duplicate**, nada muda).
-4. Localiza o usuário pelo e-mail (sem diferenciar maiúsculas) e atualiza: `plan = PRO`, `status = ACTIVE`, `started_at = agora`, `expires_at = agora + 30 dias`, `cakto_customer_email`, `cakto_order_id` → **200 activated**.
-   - **Renovação antes de vencer:** os 30 dias somam ao vencimento atual (ninguém perde dias pagos) e `started_at` é mantido.
-5. Sem conta com esse e-mail → **202 pending**. Quando alguém se cadastrar com o e-mail (até 30 dias depois), o PRO é ativado no cadastro, contando 30 dias da data do pagamento.
+Formato (documentação da Cakto): `{ secret, event, data: { id, status, customer: { email }, subscription? } }`.
+
+| Evento | Efeito | Resposta |
+|---|---|---|
+| `purchase_approved` (status `paid`) | +30 dias de PRO. Primeira cobrança, inclusive de assinatura | 200 `activated` |
+| `subscription_renewed` (status `paid`) | +30 dias somados ao vencimento atual | 200 `activated` |
+| `subscription_canceled` | Marca o cancelamento; **o PRO continua até o fim do período pago**. No vencimento, vira FREE com status `CANCELED` | 200 `canceled` |
+| `refund` / `chargeback` | Dinheiro devolvido: **PRO removido na hora** (FREE / `CANCELED`) | 200 `revoked` |
+| `purchase_refused`, `pix_gerado`, `boleto_gerado`, `picpay_gerado`, `checkout_abandonment` e outros | Nenhum (apenas registro no log) | 200 `ignored` |
+
+Validações — qualquer falha responde **401**: JSON válido, `secret` igual a `CAKTO_WEBHOOK_SECRET` (comparação em tempo constante), `event` presente, e-mail e id do pedido nos eventos tratados, status `paid` em compra/renovação.
+
+- **Idempotência:** mesmo pedido + mesmo evento chegando de novo → 200 `duplicate`, nada muda.
+- **E-mail sem conta:** compra/renovação fica **pendente** (202 `pending`) e é aplicada no cadastro (30 dias contados do pagamento). Se o pedido for reembolsado antes do cadastro, a pendência é anulada (200 `no_account`).
+- **Voltou a assinar:** um pagamento novo limpa o cancelamento anterior.
+- O usuário guarda `subscriptionCanceledAt` (cancelamento pedido) e `caktoSubscriptionId` (id da assinatura na Cakto).
 
 ## Expiração automática
 
-Toda vez que o app abre (`GET /api/me`) e em toda checagem de PRO (`getSubscription`): PRO vencido vira `plan = FREE`, `status = EXPIRED`. Os recursos PRO bloqueiam na hora; **os dados continuam salvos** e voltam a aparecer ao renovar.
+Toda vez que o app abre (`GET /api/me`) e em toda checagem de PRO (`getSubscription`): PRO vencido vira `plan = FREE` com `status = EXPIRED` — ou `CANCELED`, se o cliente tinha cancelado a recorrência. Os recursos PRO bloqueiam na hora; **os dados continuam salvos** e voltam a aparecer ao assinar de novo.
+
+Renovação **recusada** não tem evento próprio na Cakto: sem `subscription_renewed`, o PRO simplesmente vence na data e vira FREE / `EXPIRED`.
 
 ## Operação
 
@@ -75,7 +87,3 @@ curl -X POST https://SEU-APP/api/webhooks/cakto -H "Content-Type: application/js
   -d '{"secret":"SEU_SECRET","event":"purchase_approved","data":{"customer":{"email":"cliente@email.com"},"status":"paid","id":"teste-1"}}'
 ```
 
-## Ainda não tratado (próximos passos)
-
-- Eventos de **reembolso, chargeback e cancelamento** da Cakto (hoje recebem 401 e não alteram a assinatura). Quando definidos, mapear para `CANCELED`/`FREE` em `src/app/api/webhooks/cakto/route.ts` — o status `CANCELED` já existe no banco.
-- Assinatura recorrente: cada cobrança aprovada da Cakto deve chegar como `purchase_approved` com novo `id`; confirme no painel da Cakto como a renovação é notificada.
