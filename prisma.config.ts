@@ -2,6 +2,7 @@
 // em tempo de execução a conexão é feita em src/server/db.ts.
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
+import { resolveDirectUrl } from "./src/lib/database-url";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -11,6 +12,7 @@ export default defineConfig({
   },
   datasource: {
     // Migrações usam a conexão direta (sem pooler) quando existir.
-    url: process.env.DIRECT_URL || process.env.DATABASE_URL,
+    // `generate` não precisa de banco: a URL pode estar ausente nesse caso.
+    url: resolveDirectUrl()?.value,
   },
 });

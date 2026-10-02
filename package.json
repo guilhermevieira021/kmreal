@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "tsx scripts/check-env.ts && prisma generate && prisma migrate deploy && next build",
     "db:dev": "prisma dev --name kmreal",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",

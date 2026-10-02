@@ -46,9 +46,10 @@ O `.gitignore` já exclui `.env`, `node_modules`, `.next` e o Prisma Client gera
 1. No projeto da Vercel: **Storage → Create Database → Neon (Postgres)**.
 2. Região: **São Paulo (sa-east-1)** se disponível, ou a mais próxima.
 3. Conecte ao projeto (ambientes Production, Preview e Development).
-4. A Vercel cria as variáveis automaticamente. Ajuste os nomes:
-   - `DATABASE_URL` → já é a URL **com pooler** ✅
-   - Crie `DIRECT_URL` com o valor de `DATABASE_URL_UNPOOLED` (conexão direta, usada nas migrações).
+4. A Vercel cria as variáveis automaticamente — **não precisa renomear nada**. O app reconhece os nomes das integrações:
+   - app (com pooler): `DATABASE_URL`, `POSTGRES_PRISMA_URL` ou `POSTGRES_URL`
+   - migrações (direta): `DIRECT_URL`, `DATABASE_URL_UNPOOLED` ou `POSTGRES_URL_NON_POOLING`
+5. Confira em **Settings → Environment Variables** que elas estão marcadas para **Production e Preview**.
 
 ### Opção B — Supabase
 
@@ -137,7 +138,8 @@ Neon e Supabase fazem backup automático (verifique o período de retenção do 
 
 | Sintoma | Causa provável |
 |---|---|
-| Build falha em `prisma migrate deploy` | `DIRECT_URL`/`DATABASE_URL` ausente ou banco inacessível |
+| Build para em "✖ Variáveis de ambiente faltando" ou `datasource.url é obrigatória` | Banco ou `AUTH_SECRET` não cadastrados **para o ambiente do build** (Production/Preview). Cadastre e faça Redeploy |
+| Build falha em `prisma migrate deploy` com erro de conexão | URL errada ou banco inacessível |
 | `/api/health` → `unreachable` | URL errada, IP bloqueado ou banco pausado (planos gratuitos hibernam) |
 | Login volta sempre para a tela de login | `AUTH_SECRET` ausente ou diferente entre deploys; `AUTH_URL` errado em domínio próprio |
 | E-mail de senha não chega | `RESEND_API_KEY` ausente, domínio não verificado ou e-mail no spam |

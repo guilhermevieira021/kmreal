@@ -9,12 +9,13 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { DEMO_CREDENTIALS } from "../src/lib/constants";
+import { resolveDirectUrl } from "../src/lib/database-url";
 import { buildMockMaintenances, buildMockTrips, buildMockVehicles, DEMO_MONTHLY_GOAL, mockUser } from "../src/services/demo/seed";
 
 const toDate = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
 async function main() {
-  const url = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  const url = resolveDirectUrl()?.value;
   if (!url) throw new Error("Defina DATABASE_URL (veja .env.example)");
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 
