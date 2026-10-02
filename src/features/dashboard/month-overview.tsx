@@ -21,13 +21,13 @@ import { isInMonth } from "@/lib/calculations/trip";
 import { formatKm, formatMonthYear } from "@/lib/format";
 import { useData, useVehicleNames } from "@/providers/data-provider";
 import { InsightsCard } from "./insights-card";
-import { ProfitPerKmCard } from "./profit-per-km-card";
+import { ProfitHeroCard } from "./profit-hero-card";
 import { QuickLinks } from "./quick-links";
 import { RealCostCard } from "./real-cost-card";
 import { BestTripCard, LastTripCard } from "./trip-highlights";
 
 const DASHBOARD_ALERTS = 2;
-const shortMonth = new Intl.DateTimeFormat("pt-BR", { month: "short" });
+const longMonth = new Intl.DateTimeFormat("pt-BR", { month: "long" });
 
 function DashboardSkeleton() {
   return (
@@ -67,8 +67,8 @@ export function MonthOverview() {
     return {
       now,
       month,
-      previousProfitPerKm: prev.km > 0 ? prev.realProfitPerKm : null,
-      previousLabel: shortMonth.format(previous).replace(".", ""),
+      previous: prev.km > 0 ? prev : null,
+      previousMonthName: longMonth.format(previous),
       cost: costNow,
       costChange: costBefore.tripCount ? percentChange(costNow.realCostPerKm, costBefore.realCostPerKm) : null,
       costChangeLabel: window.label.includes("mês") ? "vs mês passado" : "vs 30 dias antes",
@@ -99,14 +99,14 @@ export function MonthOverview() {
         />
       ) : (
         <div className="grid gap-6">
+          {/* Ordem de prioridade: 1) quanto estou ganhando 2) quanto o veículo custa 3) a meta */}
           <div className="grid gap-3">
-            <ProfitPerKmCard
-              metrics={data.month}
-              previousProfitPerKm={data.previousProfitPerKm}
-              previousMonthLabel={data.previousLabel}
-            />
+            <ProfitHeroCard month={data.month} previous={data.previous} previousMonthName={data.previousMonthName} />
             <RealCostCard summary={data.cost} change={data.costChange} changeLabel={data.costChangeLabel} />
             <GoalCard goal={settings?.monthlyProfitGoal ?? null} monthProfit={data.month.realProfit} />
+          </div>
+
+          <Section title="Detalhes do mês">
             <div className="grid grid-cols-2 gap-3">
               <StatCard label="Receita" icon={ArrowUpRight} value={<Money value={data.month.revenue} />} />
               <StatCard label="Custo real" icon={ArrowDownRight} value={<Money value={data.month.realCosts} />} />
@@ -118,7 +118,7 @@ export function MonthOverview() {
               />
               <StatCard label="KM rodados" icon={Route} value={formatKm(data.month.km)} />
             </div>
-          </div>
+          </Section>
 
           {alerts.length > 0 && (
             <Section

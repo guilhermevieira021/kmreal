@@ -25,7 +25,7 @@ const NEXT_TITLES: Partial<Record<MaintenanceType, string>> = {
   service: "Próxima revisão",
 };
 
-const PROGRESS_COLOR = { ok: "bg-positive", soon: "bg-amber-500", overdue: "bg-destructive", unknown: "bg-muted" };
+const PROGRESS_COLOR = { ok: "bg-positive", soon: "bg-warning", overdue: "bg-destructive", unknown: "bg-muted" };
 
 function describeRemaining(h: WearItemHealth): string {
   if (h.remainingKm === null || h.dueKm === null) return "Registre a última troca para acompanhar.";
@@ -120,7 +120,7 @@ export function VehicleHealthView({ id }: { id: string }) {
               </span>
             )}
           </span>
-          <span className="text-primary text-sm font-semibold">Atualizar</span>
+          <span className="text-primary-strong text-sm font-semibold">Atualizar</span>
         </button>
 
         <div className="grid gap-3">

@@ -14,7 +14,7 @@ export function AmountInput({ id, prefix, suffix, error, className, ...props }: 
     <div className="grid gap-2">
       <div
         className={cn(
-          "bg-card flex h-16 items-center gap-2 rounded-2xl border-2 px-4 transition-colors focus-within:border-primary",
+          "bg-card flex h-16 items-center gap-2 rounded-2xl border-2 px-4 transition-colors focus-within:border-primary-strong",
           error && "border-destructive focus-within:border-destructive",
         )}
       >

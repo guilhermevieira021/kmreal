@@ -36,7 +36,7 @@ export function VehiclePicker({ vehicles, value, onSelect, allowNone = false }: 
             onClick={() => onSelect(option.id)}
             className={cn(
               "bg-card flex min-h-16 items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left transition-all active:scale-[0.99]",
-              selected ? "border-primary" : "border-border",
+              selected ? "border-primary-strong" : "border-border",
             )}
           >
             <span

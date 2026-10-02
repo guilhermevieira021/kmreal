@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import { Toaster } from "@/components/ui/sonner";
 import { APP_NAME } from "@/lib/constants";
+import { DEFAULT_THEME, getTheme, themeInitScript } from "@/lib/themes";
+import { ThemeProvider } from "@/providers/theme-provider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -17,7 +19,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fafafa",
+  // Cor inicial; o ThemeProvider troca conforme o tema escolhido.
+  themeColor: getTheme(DEFAULT_THEME).browserColor,
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -25,10 +28,16 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    // O tema real é aplicado pelo script abaixo antes da pintura; por isso o aviso de hidratação é suprimido.
+    <html lang="pt-BR" data-theme={DEFAULT_THEME} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className={`${inter.variable} font-sans`}>
-        {children}
-        <Toaster />
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
         <ServiceWorkerRegister />
       </body>
     </html>

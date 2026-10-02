@@ -1,39 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+/* Valores dos tokens por tema (registro em src/lib/themes.ts) */
+@import "./themes.css";
 
-@custom-variant dark (&:is(.dark *));
-
-:root {
-  --radius: 0.75rem;
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.52 0 0);
-  --accent: oklch(0.96 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --positive: oklch(0.56 0.15 150);
-  --border: oklch(0.912 0 0);
-  --input: oklch(0.9 0 0);
-  --ring: oklch(0.708 0 0);
-  /* Gráficos: paleta categórica validada (ordem fixa) + polo negativo divergente */
-  --chart-1: #2a78d6;
-  --chart-2: #eb6834;
-  --chart-3: #1baf7a;
-  --chart-4: #eda100;
-  --chart-5: #e87ba4;
-  --chart-6: #008300;
-  --chart-7: #4a3aa7;
-  --chart-negative: #e34948;
-}
+/* `dark:` segue o tema escuro ativo */
+@custom-variant dark (&:is([data-theme="noturna"] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -44,6 +15,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-strong: var(--primary-strong);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -51,7 +23,13 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-positive: var(--positive);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-hero: var(--hero);
+  --color-hero-foreground: var(--hero-foreground);
+  --color-hero-negative: var(--hero-negative);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -79,6 +57,8 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    /* Troca de tema suave, sem animar o carregamento inicial */
+    transition: background-color 0.2s ease, color 0.2s ease;
     overscroll-behavior-y: none;
   }
   /* Evita zoom automatico do iOS ao focar inputs (font-size >= 16px) */

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 /** Situação sempre com emoji + texto: nunca só a cor. */
 export const HEALTH_STATUS: Record<HealthStatus, { emoji: string; label: string; className: string }> = {
   ok: { emoji: "🟢", label: "Em dia", className: "bg-positive/12 text-positive" },
-  soon: { emoji: "🟡", label: "Próximo", className: "bg-amber-500/15 text-amber-800" },
+  soon: { emoji: "🟡", label: "Próximo", className: "bg-warning/12 text-warning" },
   overdue: { emoji: "🔴", label: "Atrasado", className: "bg-destructive/10 text-destructive" },
   unknown: { emoji: "⚪", label: "Sem registro", className: "bg-muted text-muted-foreground" },
 };

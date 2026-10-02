@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 /** Cores de status reservadas: sempre acompanhadas de ícone e rótulo, nunca só cor. */
 const SEVERITY: Record<AlertSeverity, { icon: LucideIcon; label: string; className: string }> = {
   critical: { icon: OctagonAlert, label: "Crítico", className: "bg-destructive/10 text-destructive" },
-  warning: { icon: CircleAlert, label: "Atenção", className: "bg-amber-500/15 text-amber-700" },
-  info: { icon: Info, label: "Aviso", className: "bg-sky-500/12 text-sky-700" },
+  warning: { icon: CircleAlert, label: "Atenção", className: "bg-warning/12 text-warning" },
+  info: { icon: Info, label: "Aviso", className: "bg-info/12 text-info" },
   positive: { icon: PartyPopper, label: "Boa notícia", className: "bg-positive/12 text-positive" },
 };
 

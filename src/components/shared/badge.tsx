@@ -6,7 +6,7 @@ const TONES: Record<ValueTone | "inverse", string> = {
   positive: "bg-positive/12 text-positive",
   negative: "bg-destructive/10 text-destructive",
   muted: "bg-muted text-muted-foreground",
-  inverse: "bg-white/15 text-white",
+  inverse: "bg-hero-foreground/15 text-hero-foreground",
 };
 
 export function Badge({

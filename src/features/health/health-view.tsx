@@ -87,7 +87,7 @@ export function HealthView() {
         </div>
       ) : (
         <div className="mt-4 grid gap-6">
-          <section aria-label="Custo real por km" className="bg-primary text-primary-foreground rounded-3xl p-5 shadow-lg">
+          <section aria-label="Custo real por km" className="bg-hero text-hero-foreground rounded-3xl p-5 shadow-lg">
             <p className="text-sm font-medium opacity-80">{subject} é</p>
             <Money value={s.realCostPerKm} size="xl" suffix="/km" className="mt-2" />
             <p className="mt-3 text-sm tabular-nums opacity-70">

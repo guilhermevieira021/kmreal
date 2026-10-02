@@ -14,7 +14,7 @@ interface RealCostCardProps {
 }
 
 /**
- * "Seu custo real por KM": o número que o motorista precisa saber de cor para
+ * "Seu veículo custa R$ X/km": o número que o motorista precisa saber de cor para
  * aceitar ou recusar um frete. Barra mostra quanto do custo é invisível na viagem.
  */
 export function RealCostCard({ summary, change, changeLabel }: RealCostCardProps) {
@@ -26,11 +26,13 @@ export function RealCostCard({ summary, change, changeLabel }: RealCostCardProps
   return (
     <Link
       href="/saude"
-      aria-label="Seu custo real por KM: ver detalhes"
+      aria-label="Quanto seu veículo custa por KM: ver detalhes"
       className="bg-card active:bg-accent block rounded-2xl border p-4 shadow-xs transition-colors"
     >
       <div className="flex items-center justify-between gap-2">
-        <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Seu custo real por KM</p>
+        <p className="text-sm font-medium">
+          Seu veículo custa <span className="text-muted-foreground font-normal">(custo real)</span>
+        </p>
         <ChevronRight className="text-muted-foreground size-4" />
       </div>
       <div className="mt-1 flex flex-wrap items-baseline gap-x-2">

@@ -35,7 +35,7 @@ function RankingRow({ stats, position, metric }: { stats: VehicleStats; position
     <li
       className={cn(
         "bg-card flex items-center gap-3 rounded-2xl border p-4 shadow-xs",
-        position === 0 && "border-amber-300 bg-amber-50/60",
+        position === 0 && "border-warning/40 bg-warning/5",
       )}
     >
       <span

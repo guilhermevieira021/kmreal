@@ -12,6 +12,7 @@ import {
   HeartPulse,
   LogOut,
   Medal,
+  Palette,
   Target,
   Truck,
   type LucideIcon,
@@ -21,7 +22,10 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Money } from "@/components/shared/money";
 import { StatCard } from "@/components/shared/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ThemeSheet } from "@/features/appearance/theme-sheet";
 import { GoalSheet } from "@/features/goal/goal-sheet";
+import { getTheme } from "@/lib/themes";
+import { useTheme } from "@/providers/theme-provider";
 import { summarizeReal } from "@/lib/calculations/real-cost";
 import { formatCurrency, formatCurrencyPerKm, formatKm, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -65,6 +69,8 @@ export function ProfileView() {
   const { trips, costRates, settings, isLoading } = useData();
   const [profile, setProfile] = useState<UserProfile>();
   const [goalOpen, setGoalOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const { theme } = useTheme();
   const totals = summarizeReal(trips, costRates);
   const [sync, setSync] = useState(syncService.getState);
   const [canImport, setCanImport] = useState(false);
@@ -121,9 +127,9 @@ export function ProfileView() {
         </div>
       ) : (
         <div className="mt-6 grid gap-3">
-          <section className="bg-primary text-primary-foreground rounded-3xl p-5 shadow-lg" aria-label="Lucro acumulado">
+          <section className="bg-hero text-hero-foreground rounded-3xl p-5 shadow-lg" aria-label="Lucro acumulado">
             <p className="text-sm font-medium opacity-80">Lucro real acumulado</p>
-            <Money value={totals.realProfit} size="xl" className={cn("mt-2", totals.realProfit < 0 && "text-red-300")} />
+            <Money value={totals.realProfit} size="xl" className={cn("mt-2", totals.realProfit < 0 && "text-hero-negative")} />
             <p className="mt-3 text-sm tabular-nums opacity-70">
               {formatCurrencyPerKm(totals.realProfitPerKm)} · margem real {formatPercent(totals.realMargin)}
             </p>
@@ -140,6 +146,12 @@ export function ProfileView() {
           <MenuIcon icon={Target} />
           <span className="flex-1">Meta de lucro mensal</span>
           <span className="text-muted-foreground text-sm tabular-nums">{goal ? formatCurrency(goal) : "Definir"}</span>
+          <ChevronRight className="text-muted-foreground size-5" />
+        </button>
+        <button type="button" className={rowClass} onClick={() => setThemeOpen(true)}>
+          <MenuIcon icon={Palette} />
+          <span className="flex-1">Aparência</span>
+          <span className="text-muted-foreground text-sm">{getTheme(theme).name}</span>
           <ChevronRight className="text-muted-foreground size-5" />
         </button>
         <MenuLink href="/saude" icon={HeartPulse} label="Saúde financeira" />
@@ -185,6 +197,7 @@ export function ProfileView() {
 
       <p className="text-muted-foreground mt-6 text-center text-xs">KmReal · v1.0</p>
       <GoalSheet open={goalOpen} onOpenChange={setGoalOpen} />
+      <ThemeSheet open={themeOpen} onOpenChange={setThemeOpen} />
     </>
   );
 }

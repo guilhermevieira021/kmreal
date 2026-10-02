@@ -36,7 +36,7 @@ import { useData } from "@/providers/data-provider";
 
 const VERDICTS: Record<FreightVerdict, { label: string; icon: typeof CircleCheck; className: string }> = {
   good: { label: "Frete viável", icon: CircleCheck, className: "bg-positive/12 text-positive" },
-  low: { label: "Margem baixa", icon: CircleAlert, className: "bg-amber-500/15 text-amber-700" },
+  low: { label: "Margem baixa", icon: CircleAlert, className: "bg-warning/12 text-warning" },
   loss: { label: "Frete com prejuízo", icon: CircleX, className: "bg-destructive/10 text-destructive" },
 };
 

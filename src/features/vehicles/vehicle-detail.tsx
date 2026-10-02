@@ -89,14 +89,14 @@ export function VehicleDetail({ id }: { id: string }) {
 
       <div className="grid gap-6">
         {/* Custo real do veículo */}
-        <section aria-label="Custo real do veículo" className="bg-primary text-primary-foreground rounded-3xl p-5 shadow-lg">
+        <section aria-label="Custo real do veículo" className="bg-hero text-hero-foreground rounded-3xl p-5 shadow-lg">
           <p className="text-sm font-medium opacity-80">Custo real do veículo</p>
           {hasTrips ? (
             <Money value={summary.realCostPerKm} size="xl" suffix="/km" className="mt-2" />
           ) : (
             <Money value={rates?.overheadPerKm ?? 0} size="xl" suffix="/km + combustível" className="mt-2" />
           )}
-          <dl className="mt-4 grid gap-1.5 border-t border-white/15 pt-3 text-sm">
+          <dl className="mt-4 grid gap-1.5 border-t border-hero-foreground/15 pt-3 text-sm">
             {perKmRows.map(([label, value]) =>
               !hasTrips && label.startsWith("Operacional") ? null : (
                 <div key={label} className="flex justify-between gap-3 tabular-nums">
@@ -175,7 +175,7 @@ export function VehicleDetail({ id }: { id: string }) {
                 Nenhum custo fixo informado. Sem eles, o lucro aparece maior do que é.
               </p>
             )}
-            <button type="button" onClick={() => setFixedOpen(true)} className={`${row} text-primary border-t font-semibold`}>
+            <button type="button" onClick={() => setFixedOpen(true)} className={`${row} text-primary-strong border-t font-semibold`}>
               <Pencil className="size-4" /> Editar custos fixos
             </button>
           </div>
@@ -200,7 +200,7 @@ export function VehicleDetail({ id }: { id: string }) {
                 </li>
               ))}
             </ul>
-            <button type="button" onClick={() => setWearState({})} className={`${row} text-primary border-t font-semibold`}>
+            <button type="button" onClick={() => setWearState({})} className={`${row} text-primary-strong border-t font-semibold`}>
               <Plus className="size-4" /> Adicionar item
             </button>
           </div>

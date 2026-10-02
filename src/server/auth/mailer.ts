@@ -46,7 +46,7 @@ export function passwordResetMail(to: string, name: string, link: string): Mail 
     `Abra o link abaixo (válido por 1 hora):\n${link}\n\nSe não foi você, ignore este e-mail.`;
   const html = `<p>Olá, ${escapeHtml(name)}!</p>
 <p>Recebemos um pedido para redefinir sua senha do <strong>KmReal</strong>.</p>
-<p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#171717;color:#fff;border-radius:10px;text-decoration:none">Criar nova senha</a></p>
+<p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#047857;color:#fff;border-radius:10px;text-decoration:none">Criar nova senha</a></p>
 <p style="color:#737373;font-size:13px">O link vale por 1 hora. Se não foi você, ignore este e-mail.</p>`;
   return { to, subject: "Redefinir sua senha do KmReal", html, text };
 }
