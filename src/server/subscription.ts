@@ -5,10 +5,12 @@ import { hasProAccess, isExpiredPro, PRO_PERIOD_DAYS, type SubscriptionInfo } fr
 import { getDb } from "./db";
 import { HttpError } from "./errors";
 import { grantPro, subscriptionSelect, type SubscriptionRow } from "./grant-pro";
+import { isLifetimeEmail, LIFETIME_EXPIRES_AT } from "./lifetime";
 
 const DAY_MS = 86_400_000;
 
-const toInfo = (row: SubscriptionRow): SubscriptionInfo => ({
+const toInfo = (row: SubscriptionRow, lifetime = false): SubscriptionInfo => ({
+  lifetime,
   plan: row.plan,
   status: row.subscriptionStatus,
   startedAt: row.subscriptionStartedAt?.toISOString() ?? null,
@@ -23,7 +25,30 @@ const toInfo = (row: SubscriptionRow): SubscriptionInfo => ({
  */
 export async function getSubscription(userId: string): Promise<SubscriptionInfo & { isPro: boolean }> {
   const db = getDb();
-  let row = await db.user.findUniqueOrThrow({ where: { id: userId }, select: subscriptionSelect });
+  const { email, ...current } = await db.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { ...subscriptionSelect, email: true },
+  });
+  let row: SubscriptionRow = current;
+
+  // PRO vitalício (LIFETIME_PRO_EMAILS): garante o acesso a cada abertura, até em conta recém-criada.
+  if (isLifetimeEmail(email)) {
+    const ok = hasProAccess(row) && row.subscriptionExpiresAt! >= LIFETIME_EXPIRES_AT && !row.subscriptionCanceledAt;
+    if (!ok) {
+      row = await db.user.update({
+        where: { id: userId },
+        data: {
+          plan: "PRO",
+          subscriptionStatus: "ACTIVE",
+          subscriptionStartedAt: row.subscriptionStartedAt ?? new Date(),
+          subscriptionExpiresAt: LIFETIME_EXPIRES_AT,
+          subscriptionCanceledAt: null,
+        },
+        select: subscriptionSelect,
+      });
+    }
+    return { ...toInfo(row, true), isPro: true };
+  }
 
   if (isExpiredPro(row)) {
     // updateMany condicional: se um pagamento acabou de renovar, não rebaixa por engano.
@@ -78,7 +103,8 @@ export type WebhookResult =
   | { result: "revoked"; userId: string }
   | { result: "duplicate" }
   | { result: "pending" }
-  | { result: "no_account" };
+  | { result: "no_account" }
+  | { result: "lifetime"; userId: string };
 
 /** Comparação de segredo em tempo constante. */
 export function secretMatches(received: unknown, expected: string | undefined): boolean {
@@ -130,6 +156,9 @@ export async function applyCaktoEvent(event: CaktoEvent, kind: Exclude<CaktoEven
       }
       return { result: kind === "grant" ? "pending" : "no_account" } as const;
     }
+
+    // Conta vitalícia: o evento fica registrado, mas o acesso não muda.
+    if (isLifetimeEmail(event.email)) return { result: "lifetime", userId: user.id } as const;
 
     if (kind === "grant") {
       const updated = await grantPro(tx, user.id, {

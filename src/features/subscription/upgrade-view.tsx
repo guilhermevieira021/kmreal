@@ -81,12 +81,14 @@ export function UpgradeView() {
         <PageHeader title="KmReal PRO" backHref="/perfil" />
         <section className="bg-hero text-hero-foreground rounded-3xl p-5 shadow-lg">
           <p className="flex items-center gap-2 text-lg font-bold">
-            <BadgeCheck className="size-6" /> Você é PRO
+            <BadgeCheck className="size-6" /> {subscription.lifetime ? "Você é PRO vitalício" : "Você é PRO"}
           </p>
           <p className="mt-1 text-sm opacity-80">
-            {subscription.canceledAt
-              ? `Assinatura cancelada · PRO liberado até ${isoDay(subscription.expiresAt)}`
-              : `Ativo desde ${isoDay(subscription.startedAt)} · renova até ${isoDay(subscription.expiresAt)}`}
+            {subscription.lifetime
+              ? "Acesso completo, sem mensalidade e sem vencimento."
+              : subscription.canceledAt
+                ? `Assinatura cancelada · PRO liberado até ${isoDay(subscription.expiresAt)}`
+                : `Ativo desde ${isoDay(subscription.startedAt)} · renova até ${isoDay(subscription.expiresAt)}`}
           </p>
         </section>
         <Section title="Incluso no seu plano" className="mt-6">
@@ -98,14 +100,16 @@ export function UpgradeView() {
             ))}
           </ul>
         </Section>
-        <Section title={subscription.canceledAt ? "Continuar no PRO" : "Renovar antes do vencimento"} className="mt-6">
+        {!subscription.lifetime && (
+          <Section title={subscription.canceledAt ? "Continuar no PRO" : "Renovar antes do vencimento"} className="mt-6">
           <p className="text-muted-foreground px-1 text-sm">
             {subscription.canceledAt
               ? `Você cancelou a renovação. Assine de novo antes de ${isoDay(subscription.expiresAt)} para não perder os recursos.`
               : `Pagando antes de ${isoDay(subscription.expiresAt)}, os 30 dias novos somam ao prazo atual.`}
           </p>
-          <SubscribeButton className="mt-2" />
-        </Section>
+            <SubscribeButton className="mt-2" />
+          </Section>
+        )}
       </>
     );
   }

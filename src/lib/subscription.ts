@@ -6,6 +6,8 @@ export type Plan = "FREE" | "PRO";
 export type SubscriptionStatus = "ACTIVE" | "EXPIRED" | "CANCELED";
 
 export interface SubscriptionInfo {
+  /** PRO vitalício (cortesia): sem vencimento nem renovação */
+  lifetime: boolean;
   plan: Plan;
   status: SubscriptionStatus | null;
   /** ISO */
