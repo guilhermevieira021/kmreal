@@ -1,0 +1,182 @@
+// KmReal — schema PostgreSQL (Prisma 7).
+// Espelha os tipos de src/types; a conversão banco ↔ domínio fica em src/server/mappers.ts.
+//
+// Convenções:
+// - Tudo que pertence ao usuário tem userId e é sempre consultado com ele (isolamento por conta).
+// - Vehicle, Trip e Maintenance têm exclusão lógica (deletedAt) e updatedAt para sync entre aparelhos.
+// - Dinheiro em Decimal (nunca float). Datas de domínio em @db.Date (sem fuso).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum FuelType {
+  diesel
+  diesel_s10
+  gasolina
+  etanol
+  gnv
+}
+
+enum MaintenanceType {
+  oil
+  tires
+  brakes
+  belt
+  clutch
+  service
+  other
+}
+
+enum MaintenanceStatus {
+  done
+  planned
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  /// Quando os dados do localStorage (protótipo) foram importados — evita importar duas vezes
+  localImportAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  vehicles            Vehicle[]
+  trips               Trip[]
+  maintenances        Maintenance[]
+  goal                Goal?
+  passwordResetTokens PasswordResetToken[]
+}
+
+model Vehicle {
+  id                 String    @id @default(uuid())
+  userId             String
+  name               String    @db.VarChar(60)
+  model              String    @db.VarChar(80)
+  fuelType           FuelType
+  kmPerLiter         Decimal   @db.Decimal(6, 2)
+  /// Base do rateio de custos fixos enquanto não há 30 dias de viagens
+  estimatedMonthlyKm Int       @default(4000)
+  /// Última leitura do hodômetro informada pelo motorista
+  odometerKm         Int?
+  odometerDate       DateTime? @db.Date
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fixedCost    FixedCost?
+  wearItems    WearItem[]
+  trips        Trip[]
+  maintenances Maintenance[]
+
+  @@index([userId, updatedAt])
+}
+
+/// Custos fixos do veículo (1:1). Anuais e mensais são convertidos em R$/km no rateio.
+model FixedCost {
+  id                 String    @id @default(uuid())
+  vehicleId          String    @unique
+  insuranceAnnual    Decimal   @default(0) @db.Decimal(10, 2)
+  insuranceExpiresOn DateTime? @db.Date
+  ipvaAnnual         Decimal   @default(0) @db.Decimal(10, 2)
+  licensingAnnual    Decimal   @default(0) @db.Decimal(10, 2)
+  financingMonthly   Decimal   @default(0) @db.Decimal(10, 2)
+  trackerMonthly     Decimal   @default(0) @db.Decimal(10, 2)
+  phoneMonthly       Decimal   @default(0) @db.Decimal(10, 2)
+  otherMonthly       Decimal   @default(0) @db.Decimal(10, 2)
+  updatedAt          DateTime  @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+/// Item com vida útil em km (pneus, óleo...): vira custo de desgaste por km.
+model WearItem {
+  id         String          @id @default(uuid())
+  vehicleId  String
+  type       MaintenanceType
+  label      String          @db.VarChar(60)
+  cost       Decimal         @db.Decimal(10, 2)
+  lifespanKm Int
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+}
+
+model Trip {
+  id                String    @id @default(uuid())
+  userId            String
+  vehicleId         String?
+  date              DateTime  @db.Date
+  freightRevenue    Decimal   @db.Decimal(12, 2)
+  km                Decimal   @db.Decimal(10, 1)
+  fuelLiters        Decimal   @default(0) @db.Decimal(10, 2)
+  fuelPricePerLiter Decimal   @default(0) @db.Decimal(8, 3)
+  tolls             Decimal   @default(0) @db.Decimal(10, 2)
+  helperPayment     Decimal   @default(0) @db.Decimal(10, 2)
+  otherCosts        Decimal   @default(0) @db.Decimal(10, 2)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+  @@index([userId, updatedAt])
+}
+
+model Maintenance {
+  id          String            @id @default(uuid())
+  userId      String
+  vehicleId   String
+  type        MaintenanceType
+  description String            @default("") @db.VarChar(120)
+  status      MaintenanceStatus
+  date        DateTime          @db.Date
+  odometerKm  Int?
+  cost        Decimal           @default(0) @db.Decimal(10, 2)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  deletedAt   DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+  @@index([vehicleId, date])
+}
+
+/// Meta de lucro mensal do usuário (1:1). Corresponde a UserSettings no domínio.
+model Goal {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  monthlyProfitTarget Decimal? @db.Decimal(12, 2)
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Token de redefinição de senha: guardamos só o hash (SHA-256), uso único, expira em 1h.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+*.tsbuildinfo
+next-env.d.ts
+
+# Variáveis de ambiente (segredos) — só o .env.example é versionado
+.env
+.env*.local
+
+# Prisma Client gerado no postinstall
+src/generated
