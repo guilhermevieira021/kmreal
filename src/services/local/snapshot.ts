@@ -72,6 +72,9 @@ export function readLocalSnapshot(): LocalSnapshot {
       date: t.date as string,
       vehicleId: t.vehicleId ?? null,
       freightRevenue: pos(t.freightRevenue),
+      // O protótipo só tinha frete fechado.
+      paymentType: "fixed" as const,
+      pricePerKm: null,
       km: n(t.km),
       fuelLiters: pos(t.fuelLiters),
       fuelPricePerLiter: pos(t.fuelPricePerLiter),

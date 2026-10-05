@@ -92,11 +92,18 @@ export interface TripCosts {
   otherCosts: number;
 }
 
+/** Como o motorista foi pago: frete fechado ou valor combinado por km. */
+export type PaymentType = "fixed" | "per_km";
+
 export interface Trip extends EntityMeta, TripCosts {
   /** Data no formato YYYY-MM-DD */
   date: string;
   vehicleId: string | null;
+  /** Receita da viagem. Em per_km = pricePerKm × km (calculada; base de todos os indicadores) */
   freightRevenue: number;
+  paymentType: PaymentType;
+  /** Valor combinado por km (só em per_km) */
+  pricePerKm: number | null;
   km: number;
 }
 

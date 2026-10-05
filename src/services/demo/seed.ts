@@ -153,11 +153,16 @@ export function buildMockTrips(now: Date = new Date()): Seed<Trip>[] {
       const trend = 1 + 0.05 * ((HISTORY_DAYS - daysAgo) / HISTORY_DAYS);
       const fuelPrice = round2(profile.basePrice * trend * (recent ? 1.07 : 1) + between([-0.05, 0.05]));
 
+      // A Master roda como agregado pago por KM; os demais, por frete fechado.
+      const perKm = profile.id === "v-master";
+      const pricePerKm = perKm ? round2(revenuePerKm) : null;
       trips.push({
         id: `t-${++n}`,
         date,
         vehicleId: profile.id,
-        freightRevenue: Math.round((km * revenuePerKm) / 10) * 10,
+        paymentType: perKm ? "per_km" : "fixed",
+        pricePerKm,
+        freightRevenue: pricePerKm ? round2(pricePerKm * km) : Math.round((km * revenuePerKm) / 10) * 10,
         km,
         fuelLiters: round2((km / profile.kmPerLiter) * between([0.96, 1.06])),
         fuelPricePerLiter: fuelPrice,

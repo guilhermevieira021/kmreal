@@ -69,7 +69,19 @@ export function TripDetail({ id, justSaved }: TripDetailProps) {
   const operationalRows: Row[] = [
     ["Veículo", vehicle?.name ?? "—"],
     ["KM rodados", formatKm(trip.km)],
-    ["Receita do frete", formatCurrency(trip.freightRevenue)],
+    ...(trip.paymentType === "per_km" && trip.pricePerKm
+      ? ([
+          ["Pagamento", "Valor por KM", `${formatCurrencyPerKm(trip.pricePerKm)} combinado`],
+          [
+            "Receita",
+            formatCurrency(trip.freightRevenue),
+            `${formatCurrency(trip.pricePerKm)} × ${formatNumber(trip.km)} km`,
+          ],
+        ] satisfies Row[])
+      : ([
+          ["Pagamento", "Frete fechado"],
+          ["Receita do frete", formatCurrency(trip.freightRevenue)],
+        ] satisfies Row[])),
     [
       "Combustível",
       formatCurrency(summary.fuelCost),

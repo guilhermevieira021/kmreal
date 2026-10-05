@@ -1,7 +1,7 @@
 import { authed, parseBody } from "@/server/api";
 import { notFound } from "@/server/errors";
 import { trips } from "@/server/repositories";
-import { tripInputSchema } from "@/server/validation";
+import { tripPatchSchema } from "@/server/validation";
 
 type Params = { id: string };
 
@@ -12,7 +12,7 @@ export const GET = authed<Params>(async ({ userId, params }) => {
 });
 
 export const PATCH = authed<Params>(async ({ request, userId, params }) =>
-  trips.update(userId, params.id, await parseBody(request, tripInputSchema.partial())),
+  trips.update(userId, params.id, await parseBody(request, tripPatchSchema)),
 );
 
 export const DELETE = authed<Params>(({ userId, params }) => trips.remove(userId, params.id));

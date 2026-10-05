@@ -33,6 +33,8 @@ import {
 import { cn } from "@/lib/utils";
 import { PREFILL_PARAMS } from "@/features/trips/trip-wizard/prefill";
 import { useData } from "@/providers/data-provider";
+import { revenueFromPricePerKm } from "@/lib/calculations/trip";
+import type { PaymentType } from "@/types";
 import { ProLockedCard } from "@/features/subscription/pro-lock";
 
 const VERDICTS: Record<FreightVerdict, { label: string; icon: typeof CircleCheck; className: string }> = {
@@ -52,14 +54,23 @@ function describeBasis(basis: CostBasis): string {
 export function FreightSimulator() {
   const { vehicles, trips, costRates, isLoading, isPro } = useData();
   const [selectedId, setSelectedId] = useState<string>();
+  const [paymentType, setPaymentType] = useState<PaymentType>("fixed");
   const [freight, setFreight] = useState("");
+  const [pricePerKm, setPricePerKm] = useState("");
   const [km, setKm] = useState("");
   const [hours, setHours] = useState("");
 
   const vehicleId = selectedId ?? vehicles[0]?.id ?? "";
   const vehicle = vehicles.find((v) => v.id === vehicleId);
-  const freightValue = parseDecimal(freight);
   const kmValue = parseDecimal(km);
+  const priceValue = parseDecimal(pricePerKm);
+  // Valor por KM: receita = valor combinado × km (mesma regra da viagem).
+  const freightValue =
+    paymentType === "per_km"
+      ? priceValue > 0 && kmValue > 0
+        ? revenueFromPricePerKm(priceValue, kmValue)
+        : 0
+      : parseDecimal(freight);
   const hoursValue = parseDecimal(hours);
   const result =
     vehicle && freightValue > 0 && kmValue > 0
@@ -127,25 +138,58 @@ export function FreightSimulator() {
           )}
         </div>
 
+        <ChipGroup
+          label="Como você vai ser pago"
+          value={paymentType}
+          onChange={setPaymentType}
+          options={[
+            { value: "fixed", label: "Frete fechado" },
+            { value: "per_km", label: "Valor por KM" },
+          ]}
+        />
+
         <div className="grid grid-cols-2 gap-3">
-          <div className="grid gap-2">
-            <label htmlFor="sim-freight" className="text-sm font-medium">
-              Valor do frete
-            </label>
-            <AmountInput
-              id="sim-freight"
-              prefix="R$"
-              value={freight}
-              onChange={(e) => setFreight(e.target.value)}
-              className="text-2xl"
-            />
-          </div>
+          {paymentType === "per_km" ? (
+            <div className="grid gap-2">
+              <label htmlFor="sim-price-km" className="text-sm font-medium">
+                Valor por KM
+              </label>
+              <AmountInput
+                id="sim-price-km"
+                prefix="R$"
+                value={pricePerKm}
+                onChange={(e) => setPricePerKm(e.target.value)}
+                className="text-2xl"
+              />
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              <label htmlFor="sim-freight" className="text-sm font-medium">
+                Valor do frete
+              </label>
+              <AmountInput
+                id="sim-freight"
+                prefix="R$"
+                value={freight}
+                onChange={(e) => setFreight(e.target.value)}
+                className="text-2xl"
+              />
+            </div>
+          )}
           <div className="grid gap-2">
             <label htmlFor="sim-km" className="text-sm font-medium">
               Distância
             </label>
             <AmountInput id="sim-km" suffix="km" value={km} onChange={(e) => setKm(e.target.value)} className="text-2xl" />
           </div>
+          {paymentType === "per_km" && freightValue > 0 && (
+            <p className="bg-accent text-accent-foreground col-span-2 flex items-center justify-between gap-3 rounded-xl px-4 py-3">
+              <span className="text-sm tabular-nums">
+                Receita: {formatCurrency(priceValue)} × {formatNumber(kmValue)} km
+              </span>
+              <span className="text-lg font-bold tabular-nums">= {formatCurrency(freightValue)}</span>
+            </p>
+          )}
           <div className="col-span-2 grid gap-2">
             <label htmlFor="sim-hours" className="text-sm font-medium">
               Tempo estimado <span className="text-muted-foreground font-normal">(opcional)</span>
@@ -290,8 +334,10 @@ export function FreightSimulator() {
             <Link
               href={`/viagens/nova?${new URLSearchParams({
                 [PREFILL_PARAMS.vehicleId]: vehicleId,
-                [PREFILL_PARAMS.freightRevenue]: freight,
                 [PREFILL_PARAMS.km]: km,
+                ...(paymentType === "per_km"
+                  ? { [PREFILL_PARAMS.paymentType]: "per_km", [PREFILL_PARAMS.pricePerKm]: pricePerKm }
+                  : { [PREFILL_PARAMS.freightRevenue]: freight }),
               }).toString()}`}
             >
               Registrar como viagem <ArrowRight />

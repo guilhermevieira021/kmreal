@@ -38,6 +38,12 @@ enum MaintenanceStatus {
   planned
 }
 
+/// Como o motorista foi pago: frete fechado ou valor combinado por km
+enum PaymentType {
+  fixed
+  per_km
+}
+
 enum Plan {
   FREE
   PRO
@@ -146,7 +152,12 @@ model Trip {
   userId            String
   vehicleId         String?
   date              DateTime  @db.Date
+  /// Receita da viagem. Em per_km é calculada: pricePerKm × km (fonte única para todos os indicadores)
   freightRevenue    Decimal   @db.Decimal(12, 2)
+  /// Viagens antigas assumem fixed
+  paymentType       PaymentType @default(fixed)
+  /// Valor combinado por km (só em per_km)
+  pricePerKm        Decimal?  @db.Decimal(8, 3)
   km                Decimal   @db.Decimal(10, 1)
   fuelLiters        Decimal   @default(0) @db.Decimal(10, 2)
   fuelPricePerLiter Decimal   @default(0) @db.Decimal(8, 3)

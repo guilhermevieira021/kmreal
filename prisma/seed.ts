@@ -72,6 +72,8 @@ async function main() {
         vehicleId: t.vehicleId ? vehicleIds.get(t.vehicleId) : null,
         date: toDate(t.date),
         freightRevenue: t.freightRevenue,
+        paymentType: t.paymentType,
+        pricePerKm: t.pricePerKm,
         km: t.km,
         fuelLiters: t.fuelLiters,
         fuelPricePerLiter: t.fuelPricePerLiter,

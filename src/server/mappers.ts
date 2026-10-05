@@ -82,6 +82,8 @@ export function tripFromRow(row: Prisma.TripModel): Trip {
     date: fromDbDate(row.date),
     vehicleId: row.vehicleId,
     freightRevenue: num(row.freightRevenue),
+    paymentType: row.paymentType,
+    pricePerKm: row.pricePerKm == null ? null : num(row.pricePerKm),
     km: num(row.km),
     fuelLiters: num(row.fuelLiters),
     fuelPricePerLiter: num(row.fuelPricePerLiter),

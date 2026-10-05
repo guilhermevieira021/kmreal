@@ -53,6 +53,9 @@ export const tripInputSchema = z.object({
   date: isoDate,
   vehicleId: z.string().min(1).nullable(),
   freightRevenue: money,
+  // Clientes antigos (PWA em cache) não mandam: assume frete fechado.
+  paymentType: z.enum(["fixed", "per_km"]).default("fixed"),
+  pricePerKm: z.number().finite().positive().max(1000).nullable().default(null),
   km: km.positive(),
   fuelLiters: z.number().finite().min(0).max(100_000),
   fuelPricePerLiter: z.number().finite().min(0).max(100),
@@ -60,6 +63,17 @@ export const tripInputSchema = z.object({
   helperPayment: money,
   otherCosts: money,
 });
+
+/**
+ * Edição parcial: sem defaults (no Zod 4 o .partial() ainda aplica .default(), o que
+ * transformaria toda edição em "frete fechado").
+ */
+export const tripPatchSchema = tripInputSchema
+  .extend({
+    paymentType: z.enum(["fixed", "per_km"]),
+    pricePerKm: z.number().finite().positive().max(1000).nullable(),
+  })
+  .partial();
 
 export const maintenanceInputSchema = z.object({
   vehicleId: z.string().min(1),

@@ -3,6 +3,9 @@ import type { PeriodSummary, Trip, TripCosts, TripSummary, UnitMetrics } from "@
 export const round2 = (value: number) => Math.round(value * 100) / 100;
 const perKm = (value: number, km: number) => (km > 0 ? round2(value / km) : 0);
 
+/** Receita de viagem paga por km: valor combinado × km rodados. Ex.: 2,35 × 420 = 987,00 */
+export const revenueFromPricePerKm = (pricePerKm: number, km: number) => round2(pricePerKm * km);
+
 export function calculateFuelCost({
   fuelLiters,
   fuelPricePerLiter,

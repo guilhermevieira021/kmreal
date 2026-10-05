@@ -11,6 +11,7 @@ import type {
   Vehicle,
   VehicleInput,
 } from "@/types";
+import { revenueFromPricePerKm } from "@/lib/calculations/trip";
 import { getDb } from "./db";
 import { badRequest, notFound } from "./errors";
 import {
@@ -128,11 +129,27 @@ export const vehicles = {
 
 /* ---------- Viagens ---------- */
 
+type TripPayment = Pick<TripInput, "paymentType" | "pricePerKm" | "km" | "freightRevenue">;
+
+/**
+ * Regra de receita da viagem. Frete fechado: a receita informada. Valor por KM: o servidor
+ * recalcula valor × km (não confia no total vindo do app). Todos os indicadores usam a receita.
+ */
+function normalizePayment(t: TripPayment): TripPayment {
+  if (t.paymentType === "per_km") {
+    if (!t.pricePerKm || t.pricePerKm <= 0) throw badRequest("Informe o valor combinado por KM");
+    return { ...t, freightRevenue: revenueFromPricePerKm(t.pricePerKm, t.km) };
+  }
+  return { ...t, paymentType: "fixed", pricePerKm: null };
+}
+
 function tripData(input: Partial<TripInput>) {
   return {
     date: input.date ? toDbDate(input.date) : undefined,
     vehicleId: input.vehicleId,
     freightRevenue: input.freightRevenue,
+    paymentType: input.paymentType,
+    pricePerKm: input.pricePerKm,
     km: input.km,
     fuelLiters: input.fuelLiters,
     fuelPricePerLiter: input.fuelPricePerLiter,
@@ -158,8 +175,15 @@ export const trips = {
 
   async create(userId: string, input: TripInput): Promise<Trip> {
     if (input.vehicleId) await assertOwnedVehicle(userId, input.vehicleId);
+    const payment = normalizePayment(input);
     const row = await getDb().trip.create({
-      data: { ...tripData(input), userId, date: toDbDate(input.date), freightRevenue: input.freightRevenue, km: input.km },
+      data: {
+        ...tripData({ ...input, ...payment }),
+        userId,
+        date: toDbDate(input.date),
+        freightRevenue: payment.freightRevenue,
+        km: input.km,
+      },
     });
     return tripFromRow(row);
   },
@@ -167,7 +191,22 @@ export const trips = {
   async update(userId: string, id: string, changes: Partial<TripInput>): Promise<Trip> {
     if (changes.vehicleId) await assertOwnedVehicle(userId, changes.vehicleId);
     const db = getDb();
-    const { count } = await db.trip.updateMany({ where: { id, userId, deletedAt: null }, data: tripData(changes) });
+    const current = await db.trip.findFirst({ where: { id, userId, deletedAt: null } });
+    if (!current) throw notFound("Viagem");
+
+    // Mudou forma de pagamento, valor, km ou receita: recalcula a receita com os valores finais.
+    let data = tripData(changes);
+    if (["paymentType", "pricePerKm", "km", "freightRevenue"].some((k) => k in changes)) {
+      const existing = tripFromRow(current);
+      const payment = normalizePayment({
+        paymentType: changes.paymentType ?? existing.paymentType,
+        pricePerKm: changes.pricePerKm !== undefined ? changes.pricePerKm : existing.pricePerKm,
+        km: changes.km ?? existing.km,
+        freightRevenue: changes.freightRevenue ?? existing.freightRevenue,
+      });
+      data = { ...data, ...tripData(payment) };
+    }
+    const { count } = await db.trip.updateMany({ where: { id, userId, deletedAt: null }, data });
     if (!count) throw notFound("Viagem");
     return tripFromRow(await db.trip.findUniqueOrThrow({ where: { id } }));
   },

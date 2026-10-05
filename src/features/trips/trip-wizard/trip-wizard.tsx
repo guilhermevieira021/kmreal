@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, Check, Fuel, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Fuel, Gauge, Receipt, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { AmountInput } from "@/components/shared/amount-input";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -15,13 +15,15 @@ import { calculateRealTrip, type CostRates } from "@/lib/calculations/real-cost"
 import { calculateFuelCost } from "@/lib/calculations/trip";
 import { formatCurrency, formatNumber, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Trip, TripInput, Vehicle } from "@/types";
+import type { PaymentType, Trip, TripInput, Vehicle } from "@/types";
 import { TripResults } from "../trip-results";
-import type { TripWizardInitial } from "./prefill";
+import { toPaymentType, type TripWizardInitial } from "./prefill";
 import {
+  effectiveRevenue,
   OPTIONAL_STEP_FIELD,
   STEPS,
   safe,
+  stepText,
   toNumbers,
   validateStep,
   type WizardErrors,
@@ -42,13 +44,16 @@ interface TripWizardProps {
   onSubmit: (input: TripInput) => Promise<void>;
 }
 
-const toInput = (n: number) => (n ? formatNumber(n).replace(/\./g, "") : "");
+/** Número → texto do campo, sem perder casas decimais (ex.: 2.35 → "2,35"). */
+const toInput = (n: number | null | undefined) => (n ? String(n).replace(".", ",") : "");
 
 function initialValues(vehicles: Vehicle[], recentTrips: Trip[], initial?: TripWizardInitial, editing?: Trip): WizardValues {
   if (editing) {
     return {
       date: editing.date,
       vehicleId: editing.vehicleId ?? "",
+      paymentType: editing.paymentType,
+      pricePerKm: toInput(editing.pricePerKm),
       freightRevenue: toInput(editing.freightRevenue),
       km: toInput(editing.km),
       fuelLiters: toInput(editing.fuelLiters),
@@ -64,6 +69,8 @@ function initialValues(vehicles: Vehicle[], recentTrips: Trip[], initial?: TripW
   return {
     date: todayISO(),
     vehicleId,
+    paymentType: toPaymentType(initial?.paymentType),
+    pricePerKm: initial?.pricePerKm ?? "",
     freightRevenue: initial?.freightRevenue ?? "",
     km: initial?.km ?? "",
     fuelLiters: "",
@@ -92,7 +99,7 @@ export function TripWizard({ vehicles, recentTrips, costRates, initial, editing,
       calculateRealTrip(
         {
           vehicleId: values.vehicleId || null,
-          freightRevenue: safe(numbers.freightRevenue),
+          freightRevenue: effectiveRevenue(values.paymentType, numbers),
           km: safe(numbers.km),
           fuelLiters: safe(numbers.fuelLiters),
           fuelPricePerLiter: safe(numbers.fuelPricePerLiter),
@@ -102,7 +109,7 @@ export function TripWizard({ vehicles, recentTrips, costRates, initial, editing,
         },
         costRates,
       ),
-    [numbers, values.vehicleId, costRates],
+    [numbers, values.vehicleId, values.paymentType, costRates],
   );
 
   const vehicle = vehicles.find((v) => v.id === values.vehicleId);
@@ -113,6 +120,8 @@ export function TripWizard({ vehicles, recentTrips, costRates, initial, editing,
   });
   const isDirty = (Object.keys(values) as (keyof WizardValues)[]).some((k) => values[k] !== startValues[k]);
 
+  const perKm = values.paymentType === "per_km";
+  const text = stepText(step, values.paymentType);
   const optionalField = OPTIONAL_STEP_FIELD[step.id];
   const canSkip = optionalField && !values[optionalField].trim();
 
@@ -148,7 +157,15 @@ export function TripWizard({ vehicles, recentTrips, costRates, initial, editing,
     }
     setPending(true);
     try {
-      await onSubmit({ date: values.date, vehicleId: values.vehicleId || null, ...numbers });
+      await onSubmit({
+        ...numbers,
+        date: values.date,
+        vehicleId: values.vehicleId || null,
+        paymentType: values.paymentType,
+        pricePerKm: perKm ? numbers.pricePerKm : null,
+        // Em valor por KM a receita é calculada (o servidor também recalcula).
+        freightRevenue: effectiveRevenue(values.paymentType, numbers),
+      });
     } catch {
       toast.error("Não foi possível salvar a viagem");
       setPending(false);
@@ -166,7 +183,13 @@ export function TripWizard({ vehicles, recentTrips, costRates, initial, editing,
   function handleSelectVehicle(id: string) {
     setField("vehicleId", id);
     // Avança sozinho na criação: a escolha do veículo é a única ação da etapa.
-    if (!isEdit) setTimeout(() => goTo(1), 150);
+    if (!isEdit) setTimeout(() => goTo(stepIndex + 1), 150);
+  }
+
+  function handleSelectPayment(type: PaymentType) {
+    setValues((prev) => ({ ...prev, paymentType: type }));
+    setErrors({});
+    if (!isEdit) setTimeout(() => goTo(stepIndex + 1), 150);
   }
 
   const closeButton = (
@@ -210,7 +233,7 @@ export function TripWizard({ vehicles, recentTrips, costRates, initial, editing,
             <li key={s.id}>
               <button
                 type="button"
-                aria-label={`Etapa ${i + 1}: ${s.label}`}
+                aria-label={`Etapa ${i + 1}: ${stepText(s, values.paymentType).label}`}
                 aria-current={i === stepIndex ? "step" : undefined}
                 // Na edição, qualquer etapa é acessível; na criação, só as já vistas.
                 disabled={!isEdit && i >= stepIndex}
@@ -231,8 +254,48 @@ export function TripWizard({ vehicles, recentTrips, costRates, initial, editing,
 
       {/* Etapa atual */}
       <div key={step.id} className="animate-in fade-in slide-in-from-right-4 flex-1 px-4 pt-3 duration-200">
-        <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{step.label}</p>
-        <h1 className="mt-1 mb-5 text-2xl font-semibold tracking-tight">{step.title}</h1>
+        <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{text.label}</p>
+        <h1 className="mt-1 mb-5 text-2xl font-semibold tracking-tight">{text.title}</h1>
+
+        {step.id === "payment" && (
+          <div role="radiogroup" aria-label="Forma de pagamento" className="grid gap-3">
+            {(
+              [
+                { type: "fixed", icon: Receipt, title: "Frete fechado", hint: "Valor total combinado pela viagem" },
+                { type: "per_km", icon: Gauge, title: "Valor por KM", hint: "Um valor por km rodado (ex.: R$ 2,35/km)" },
+              ] as const
+            ).map((option) => {
+              const selected = values.paymentType === option.type;
+              return (
+                <button
+                  key={option.type}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => handleSelectPayment(option.type)}
+                  className={cn(
+                    "bg-card flex min-h-20 items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left transition-all active:scale-[0.99]",
+                    selected ? "border-primary-strong" : "border-border",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex size-11 shrink-0 items-center justify-center rounded-xl",
+                      selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <option.icon className="size-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold">{option.title}</span>
+                    <span className="text-muted-foreground block text-sm">{option.hint}</span>
+                  </span>
+                  {selected && <Check className="size-5 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {step.id === "vehicle" && (
           <div className="grid gap-5">
@@ -254,11 +317,36 @@ export function TripWizard({ vehicles, recentTrips, costRates, initial, editing,
           </div>
         )}
 
-        {step.id === "revenue" && (
-          <AmountInput id="freightRevenue" prefix="R$" autoFocus aria-label={step.title} {...bindAmount("freightRevenue")} />
-        )}
+        {step.id === "revenue" &&
+          (perKm ? (
+            <div className="grid gap-2">
+              <AmountInput
+                id="pricePerKm"
+                prefix="R$"
+                suffix="/km"
+                autoFocus
+                aria-label={text.title}
+                {...bindAmount("pricePerKm")}
+              />
+              <p className="text-muted-foreground text-sm">A receita é calculada com os km rodados, na próxima etapa.</p>
+            </div>
+          ) : (
+            <AmountInput id="freightRevenue" prefix="R$" autoFocus aria-label={text.title} {...bindAmount("freightRevenue")} />
+          ))}
 
-        {step.id === "km" && <AmountInput id="km" suffix="km" autoFocus aria-label={step.title} {...bindAmount("km")} />}
+        {step.id === "km" && (
+          <div className="grid gap-3">
+            <AmountInput id="km" suffix="km" autoFocus aria-label={text.title} {...bindAmount("km")} />
+            {perKm && safe(numbers.pricePerKm) > 0 && (
+              <div className="bg-accent text-accent-foreground flex items-center justify-between gap-3 rounded-xl px-4 py-3">
+                <span className="text-sm tabular-nums">
+                  {formatCurrency(safe(numbers.pricePerKm))} × {formatNumber(safe(numbers.km))} km
+                </span>
+                <span className="text-lg font-bold tabular-nums">= {formatCurrency(effectiveRevenue("per_km", numbers))}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {step.id === "fuel" && (
           <div className="grid gap-4">
@@ -300,7 +388,7 @@ export function TripWizard({ vehicles, recentTrips, costRates, initial, editing,
 
         {optionalField && (
           <div className="grid gap-2">
-            <AmountInput id={optionalField} prefix="R$" autoFocus aria-label={step.title} {...bindAmount(optionalField)} />
+            <AmountInput id={optionalField} prefix="R$" autoFocus aria-label={text.title} {...bindAmount(optionalField)} />
             <p className="text-muted-foreground text-sm">Deixe em branco se não teve esse custo.</p>
           </div>
         )}
